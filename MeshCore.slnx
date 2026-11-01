@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MeshCore.Protocol/MeshCore.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MeshCore.Protocol.Tests/MeshCore.Protocol.Tests.csproj" />
+  </Folder>
+</Solution>

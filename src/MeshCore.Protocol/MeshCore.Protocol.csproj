@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MeshCore.Protocol</RootNamespace>
+    <Description>Transport-agnostic encoder/decoder for the MeshCore companion radio protocol.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MeshCore.Protocol.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -426,3 +426,10 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# MeshCore Computer Client runtime files
+appsettings.auth.json
+*.db
+*.db-shm
+*.db-wal
+keys/

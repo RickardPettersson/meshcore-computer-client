@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Public APIs are documented where it helps; partial <param> docs are fine. -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+    <Authors>Rickard Pettersson</Authors>
+    <Copyright>Copyright (c) 2026 Rickard Pettersson</Copyright>
+  </PropertyGroup>
+</Project>
