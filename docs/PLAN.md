@@ -109,13 +109,14 @@ package, and don't depend on ASP.NET.
 | `device` | `GET /device` (connection + node + hardware), `GET /device/battery`, `GET /device/time`, `POST /device/time` 🔒, `POST /device/advert`, `POST /device/reboot` 🔒 |
 | `contacts` | `GET /contacts[?includeRemoved]`, `GET /contacts/{key}`, `POST /contacts/refresh`, `POST /contacts/{key}/reset-path` 🔒, `DELETE /contacts/{key}` 🔒 |
 | `channels` | `GET /channels`, `GET /channels/{idx}`, `GET /channels/{idx}/secret` 🔒, `PUT /channels/{idx}` 🔒 (random key if none given), `DELETE /channels/{idx}` 🔒 |
-| `messages` | `GET /messages?contact=&channel=&before=&take=` (paged from the DB), `POST /messages/direct`, `POST /messages/channel`, `POST /messages/sync` |
+| `messages` | `GET /messages?contact=&channel=&before=&after=&take=` (paged from the DB; `after` catches up oldest-first), `POST /messages/direct`, `POST /messages/channel`, `POST /messages/sync` |
+| `conversations` | `GET /conversations` (chat list with the signed-in user's unread counts), `POST /conversations/read` (per-user read marker) |
+| real-time | SignalR hub: `/api/v1/hub` on the API port (bearer token, or `?access_token=` for WebSockets) and `/hubs/mesh` on the website port (cookie). Events: `message` (new or changed status), `radio`, `contacts`, `channels` |
 
 **Later:**
 
 | Resource | Endpoints | Phase |
 |---|---|---|
-| real-time | SignalR hub `/hubs/mesh`: new message, ACK, advert, connection state | 6 |
 | `device/radio` | `GET/PUT` radio params, TX power, tuning; rename node; set location | 7 |
 | `contacts` | add/update, share, export/import | 7 |
 | `repeaters` | `POST /{key}/login`, `/logout`, `/status`, `/telemetry`, `/trace`, `/cli` | 7 |
@@ -174,8 +175,8 @@ Browser ──cookie──► MVC (Razor views + /bff/*) ──JWT──► REST
   - A strict CSP (`default-src 'self'`, no inline script or style). Everything is served locally, with Bootstrap restored by LibMan.
   - `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy` and `Permissions-Policy`.
 
-**Phase 6 (live chat):** the browser gets live updates over SignalR through the same cookie session. Any extra JS calls go
-through the MVC side rather than straight to the API, with a YARP route if needed.
+**Live chat (Phase 6):** each signed-in page opens one SignalR connection to `/hubs/mesh` with its cookie. `live.js` keeps the unread badge, tab title, radio status pill and chat list current and shows toasts. `chat.js` adds messages and updates delivery ticks in the open thread, sends with `fetch`, catches up after reconnecting, and marks messages read. JS calls go
+to the MVC side (`/Messages/Send`, `MarkRead`, `Updates`, `UnreadCount`, `List`), which calls the API, so no proxy is needed. Without JavaScript every page still works with plain form posts.
 
 ### Users and login (multi-user from day one)
 
@@ -276,7 +277,7 @@ Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:C
 | 3 | SQLite persistence (EF Core migrations), `RadioConnectionService` + `MeshRadio`, send direct/channel messages with ACK tracking, console chat | ✅ Connected to the Heltec; takeover backoff verified |
 | 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | ✅ Verified against the Heltec; a User gets 403 on admin endpoints (tested) |
 | 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Chats, Contacts, Channels, Device, Settings → Users | ✅ Checked at phone and desktop sizes against the Heltec; Admin adds a user who signs in (tested) |
-| 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest | Real-time chat in phone and desktop browsers |
+| 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest + radio simulator | ✅ Live chat checked at phone and desktop sizes against the simulator (PWA install not yet verified on a phone) |
 | 7 | Advanced: repeater login/status/telemetry/trace/CLI, radio settings, key import/export | Full feature coverage |
 | 8 | Polish: reconnect UX, logging (Serilog → console/file), `dotnet publish` single-file exe, README | One exe to run |
 

@@ -22,6 +22,14 @@
         "font/fonts/bootstrap-icons.woff",
         "LICENSE"
       ]
+    },
+    {
+      "library": "@microsoft/signalr@10.0.11",
+      "destination": "wwwroot/lib/signalr",
+      "files": [
+        "dist/browser/signalr.min.js",
+        "dist/browser/signalr.min.js.map"
+      ]
     }
   ]
 }

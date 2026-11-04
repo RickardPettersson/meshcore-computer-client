@@ -106,14 +106,22 @@ public sealed record MessageResponse(
 /// <param name="Contact">The contact's public key, or at least its first 12 hex characters.</param>
 public sealed record SendDirectRequest(
     [Required, RegularExpression("^[0-9a-fA-F]{12,64}$", ErrorMessage = "Use the contact's public key (at least 12 hex characters).")] string Contact,
-    [Required, StringLength(ProtocolLimits.MaxTextBytes, MinimumLength = 1)] string Text);
+    [Required, StringLength(ProtocolLimits.MaxTextBytes, MinimumLength = 1, ErrorMessage = "The message is too long: the limit is 160 bytes.")] string Text);
 
 public sealed record SendChannelRequest(
     [Range(0, 255)] byte Channel,
-    [Required, StringLength(ProtocolLimits.MaxTextBytes, MinimumLength = 1)] string Text);
+    [Required, StringLength(ProtocolLimits.MaxTextBytes, MinimumLength = 1, ErrorMessage = "The message is too long: the limit is 160 bytes.")] string Text);
 
 public sealed record SyncResponse(int NewMessages);
 
 /// <summary>A chat: a channel, or a contact you've exchanged direct messages with.</summary>
+/// <param name="Key">Stable id: <c>c:&lt;channel&gt;</c> or <c>d:&lt;key prefix&gt;</c>.</param>
+/// <param name="Unread">Incoming messages the signed-in user hasn't read yet.</param>
 public sealed record ConversationResponse(
-    MessageKind Kind, string? ContactKeyPrefix, byte? ChannelIndex, string Title, MessageResponse? LastMessage);
+    string Key, MessageKind Kind, string? ContactKeyPrefix, byte? ChannelIndex, string Title, MessageResponse? LastMessage, int Unread);
+
+/// <param name="Key">Conversation key from <see cref="ConversationResponse.Key"/>.</param>
+/// <param name="MessageId">The newest message the user has seen.</param>
+public sealed record MarkReadRequest(
+    [Required, RegularExpression("^(c:[0-9]{1,3}|d:[0-9a-fA-F]{12})$")] string Key,
+    [Range(0, long.MaxValue)] long MessageId);

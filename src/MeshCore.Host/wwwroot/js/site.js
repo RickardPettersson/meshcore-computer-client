@@ -85,4 +85,9 @@
             ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     });
+
+    // ---- Installable app (PWA). Browsers only allow service workers on HTTPS or localhost. ----
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+        navigator.serviceWorker.register('/sw.js').catch(function () { /* not essential */ });
+    }
 })();

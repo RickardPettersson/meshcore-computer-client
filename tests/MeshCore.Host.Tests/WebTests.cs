@@ -26,6 +26,18 @@ internal sealed partial class Browser(ApiFactory app)
         return await _http.PostAsync(action, new FormUrlEncodedContent([.. fields.Select(f => KeyValuePair.Create(f.Name, f.Value)), KeyValuePair.Create("__RequestVerificationToken", token)]));
     }
 
+    /// <summary>Like <see cref="SubmitAsync"/>, plus one request header (e.g. <c>X-Requested-With: fetch</c>).</summary>
+    public async Task<HttpResponseMessage> SubmitWithHeaderAsync(string formPage, string action, (string Name, string Value) header, params (string Name, string Value)[] fields)
+    {
+        var token = AntiforgeryRegex().Match(await PageAsync(formPage)).Groups[1].Value;
+        using var request = new HttpRequestMessage(HttpMethod.Post, action)
+        {
+            Content = new FormUrlEncodedContent([.. fields.Select(f => KeyValuePair.Create(f.Name, f.Value)), KeyValuePair.Create("__RequestVerificationToken", token)]),
+        };
+        request.Headers.Add(header.Name, header.Value);
+        return await _http.SendAsync(request);
+    }
+
     public Task<HttpResponseMessage> PostWithoutTokenAsync(string action, params (string Name, string Value)[] fields) =>
         _http.PostAsync(action, new FormUrlEncodedContent(fields.Select(f => KeyValuePair.Create(f.Name, f.Value))));
 

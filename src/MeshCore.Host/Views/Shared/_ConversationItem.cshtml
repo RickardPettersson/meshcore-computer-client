@@ -2,32 +2,39 @@
 @{
     var m = Model.LastMessage;
     var isChannel = Model.Kind == MessageKind.Channel;
+    var unread = Model.Unread > 0;
     var preview = m is null ? null
         : m.Direction == MessageDirection.Outgoing ? $"You: {m.Text}"
         : isChannel && m.SenderName is { } n ? $"{n}: {m.Text}"
         : m.Text;
 }
-<a class="list-group-item list-group-item-action d-flex gap-3 py-3"
+<a class="list-group-item list-group-item-action d-flex gap-3 py-3" data-conversation="@Model.Key"
    asp-controller="Messages" asp-action="@(isChannel ? "Channel" : "Direct")" asp-route-id="@(isChannel ? Model.ChannelIndex.ToString() : Model.ContactKeyPrefix)">
     <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true">
         <i class="bi @(isChannel ? "bi-hash" : "bi-person")"></i>
     </span>
     <span class="flex-grow-1 min-w-0">
-        <span class="d-flex gap-2">
+        <span class="d-flex gap-2 align-items-center">
             <strong class="text-truncate me-auto">@Model.Title</strong>
             @if (m is not null)
             {
                 <small class="text-body-secondary text-nowrap"><partial name="_Time" model="@((DateTimeOffset?)m.ReceivedAt)" /></small>
             }
         </span>
-        <span class="d-block text-body-secondary text-truncate small">
-            @if (preview is null)
+        <span class="d-flex gap-2 align-items-center">
+            <span class="d-block text-truncate small me-auto @(unread ? "fw-semibold text-body" : "text-body-secondary")">
+                @if (preview is null)
+                {
+                    <em>No messages yet</em>
+                }
+                else
+                {
+                    @preview
+                }
+            </span>
+            @if (unread)
             {
-                <em>No messages yet</em>
-            }
-            else
-            {
-                @preview
+                <span class="badge rounded-pill text-bg-primary" aria-label="@Model.Unread unread">@(Model.Unread > 99 ? "99+" : Model.Unread.ToString())</span>
             }
         </span>
     </span>

@@ -436,3 +436,6 @@ keys/
 
 # App data folder (SQLite DB, keys)
 data/
+
+# Simulator data folder (README example)
+data-sim/

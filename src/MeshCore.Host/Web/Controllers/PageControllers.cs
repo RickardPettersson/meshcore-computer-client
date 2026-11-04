@@ -190,36 +190,91 @@ public sealed class MessagesController(MeshApiClient api) : WebController
         }
         var device = await api.DeviceAsync(ct);
         var messages = await api.MessagesAsync(channel: id, before: before, ct: ct);
+        var key = Data.ConversationKey.Channel(id);
+        await MarkNewestReadAsync(key, messages, before, ct);
         var limit = ProtocolLimits.MaxChannelTextBytes(device.Node?.Name ?? "");
-        return View("Chat", new ChatViewModel(channel.Name, $"Channel {id}", null, id, messages.Reverse().ToList(), await UserNamesAsync(ct), limit, TempData["Draft"] as string));
+        return View("Chat", new ChatViewModel(key, channel.Name, $"Channel {id}", null, id, messages.Reverse().ToList(), await UserNamesAsync(ct), limit, TempData["Draft"] as string));
     }
 
     public async Task<IActionResult> Direct(string id, long? before, CancellationToken ct)
     {
         var contact = await api.ContactAsync(id, ct);
         var messages = await api.MessagesAsync(contact: contact.KeyPrefix, before: before, ct: ct);
+        var key = Data.ConversationKey.Direct(contact.KeyPrefix);
+        await MarkNewestReadAsync(key, messages, before, ct);
         var subtitle = contact.Hops is { } h ? $"{h} hop(s)" : "route unknown (floods)";
-        return View("Chat", new ChatViewModel(contact.Name, subtitle, contact.PublicKey, null, messages.Reverse().ToList(), await UserNamesAsync(ct), ProtocolLimits.MaxTextBytes, TempData["Draft"] as string));
+        return View("Chat", new ChatViewModel(key, contact.Name, subtitle, contact.PublicKey, null, messages.Reverse().ToList(), await UserNamesAsync(ct), ProtocolLimits.MaxTextBytes, TempData["Draft"] as string));
     }
 
+    /// <summary>
+    /// Sends a message. With JavaScript (<c>X-Requested-With: fetch</c>) it answers with JSON and the page updates live;
+    /// without, it's a classic post/redirect/get.
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Send(string? contact, byte? channel, string text, CancellationToken ct)
     {
+        var ajax = Request.Headers.XRequestedWith == "fetch";
         try
         {
-            if (contact is not null)
+            var sent = contact is not null
+                ? await api.SendDirectAsync(contact, text, ct)
+                : await api.SendChannelAsync(channel ?? 0, text, ct);
+            if (ajax)
             {
-                await api.SendDirectAsync(contact, text, ct);
-                return RedirectToAction(nameof(Direct), new { id = contact });
+                return Json(sent, MeshApiClient.Json);
             }
-            await api.SendChannelAsync(channel ?? 0, text, ct);
-            return RedirectToAction(nameof(Channel), new { id = channel ?? 0 });
+            return contact is not null ? RedirectToAction(nameof(Direct), new { id = contact }) : RedirectToAction(nameof(Channel), new { id = channel ?? 0 });
         }
-        catch (ApiException ex) when (ex.Status is HttpStatusCode.BadRequest or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout)
+        catch (ApiException ex) when (ex.Status is HttpStatusCode.BadRequest or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout or HttpStatusCode.Conflict)
         {
+            if (ajax)
+            {
+                return StatusCode((int)ex.Status, new { error = ex.Message });
+            }
             FlashError(ex.Message);
             TempData["Draft"] = text; // Don't lose what they typed.
             return contact is not null ? RedirectToAction(nameof(Direct), new { id = contact }) : RedirectToAction(nameof(Channel), new { id = channel ?? 0 });
+        }
+    }
+
+    /// <summary>Called by the chat page when new messages are seen while it's open.</summary>
+    [HttpPost]
+    public async Task<IActionResult> MarkRead(string key, long messageId, CancellationToken ct)
+    {
+        if (!Data.ConversationKey.TryParse(key, out _, out _, out _))
+        {
+            return BadRequest();
+        }
+        await api.MarkReadAsync(key, messageId, ct);
+        return NoContent();
+    }
+
+    /// <summary>Messages newer than <paramref name="after"/>, for catching up after the live connection drops.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Updates(string key, long after, CancellationToken ct)
+    {
+        if (!Data.ConversationKey.TryParse(key, out _, out var prefix, out var channel))
+        {
+            return BadRequest();
+        }
+        return Json(await api.MessagesAfterAsync(prefix, channel, after, ct), MeshApiClient.Json);
+    }
+
+    /// <summary>Total unread for the signed-in user (keeps the navigation badge exact).</summary>
+    [HttpGet]
+    public async Task<IActionResult> UnreadCount(CancellationToken ct) =>
+        Json(new { total = (await api.ConversationsAsync(ct)).Sum(c => c.Unread) });
+
+    /// <summary>The chat list, without the page around it (the live script swaps it in when something changes).</summary>
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct) => PartialView("_ConversationList", await api.ConversationsAsync(ct));
+
+    private async Task MarkNewestReadAsync(string key, MessageResponse[] newestFirst, long? before, CancellationToken ct)
+    {
+        // Only when looking at the latest page; paging back through history doesn't change what's unread.
+        if (before is null && newestFirst.Length > 0)
+        {
+            await api.MarkReadAsync(key, newestFirst[0].Id, ct);
         }
     }
 

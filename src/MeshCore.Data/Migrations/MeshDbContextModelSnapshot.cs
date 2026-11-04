@@ -174,6 +174,24 @@ namespace MeshCore.Data.Migrations
 
                     b.ToTable("Messages", (string)null);
                 });
+
+            modelBuilder.Entity("MeshCore.Data.ReadMarkerEntity", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationKey")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LastReadMessageId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("UserId", "ConversationKey");
+
+                    b.ToTable("ReadMarkers", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -6,7 +6,8 @@ public sealed class RadioOptions
     public const string SectionName = "MeshCore";
 
     /// <summary>
-    /// Radio address: <c>192.168.1.212:5000</c> (WiFi), <c>COM11</c> (USB), or <c>auto</c> to probe USB ports.
+    /// Radio address: <c>192.168.1.212:5000</c> (WiFi), <c>COM11</c> (USB), <c>auto</c> to probe USB ports,
+    /// or <c>simulator</c> for a pretend radio (demos and development; nothing is transmitted).
     /// </summary>
     public string Connection { get; set; } = "auto";
 
@@ -34,4 +35,7 @@ public sealed class RadioOptions
 
     /// <summary>Safety net: also drain the radio's message queue this often, in case a push was missed.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>With <c>Connection = "simulator"</c>: how often a simulated node sends something.</summary>
+    public TimeSpan SimulatorMessageInterval { get; set; } = TimeSpan.FromSeconds(20);
 }

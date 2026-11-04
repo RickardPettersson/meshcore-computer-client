@@ -1,0 +1,168 @@
+// Live chat thread: appends messages pushed over SignalR (via live.js), updates delivery ticks in place,
+// sends without a page reload, catches up after reconnects, and marks what you've seen as read.
+// Without JavaScript the same page still works with a normal form post.
+(function () {
+    'use strict';
+
+    var chat = document.getElementById('chat');
+    var composer = document.getElementById('composer');
+    var template = document.getElementById('bubble-template');
+    if (!chat || !template) { return; }
+
+    var key = chat.dataset.conversation;
+    var me = chat.dataset.me;
+    var isChannel = chat.dataset.channel === 'true';
+    var token = composer ? composer.querySelector('input[name="__RequestVerificationToken"]') : null;
+    var end = document.getElementById('chat-end');
+
+    var icons = {
+        Sending: 'bi-clock', Sent: 'bi-check2', Delivered: 'bi-check2-all', NotConfirmed: 'bi-question-circle', Failed: 'bi-exclamation-circle',
+    };
+
+    function conversationKey(m) {
+        return m.kind === 'Channel' ? 'c:' + m.channelIndex : 'd:' + m.contactKeyPrefix;
+    }
+
+    function newestId() {
+        var ids = Array.prototype.map.call(chat.querySelectorAll('[data-id]'), function (b) { return parseInt(b.dataset.id, 10) || 0; });
+        return ids.length ? Math.max.apply(null, ids) : 0;
+    }
+
+    function formatTime(iso) {
+        var d = new Date(iso);
+        return d.toDateString() === new Date().toDateString()
+            ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function setStatus(icon, m) {
+        icon.className = 'bi ' + (icons[m.status] || '');
+        icon.dataset.status = m.status;
+        var title = m.status + (m.roundTripMs ? ' (' + m.roundTripMs + ' ms)' : '') + (m.error ? ': ' + m.error : '');
+        icon.title = title;
+        icon.setAttribute('aria-label', m.status);
+    }
+
+    function render(m) {
+        var mine = m.direction === 'Outgoing';
+        var el = template.content.firstElementChild.cloneNode(true);
+        el.classList.add(mine ? 'mine' : 'theirs');
+        el.dataset.id = m.id;
+        el.querySelector('[data-text]').textContent = m.text;
+        if (!mine && isChannel && m.senderName) {
+            var s = el.querySelector('[data-sender]');
+            s.textContent = m.senderName;
+            s.classList.remove('d-none');
+        }
+        if (mine && m.sentByUserId && m.sentByUserId !== me) {
+            var by = el.querySelector('[data-by]');
+            by.textContent = 'by another user';
+            by.classList.remove('d-none');
+        }
+        if (!mine) {
+            var sig = el.querySelector('[data-signal]');
+            sig.textContent = (m.hops != null ? m.hops + ' hop(s)' : 'direct') + (m.snr != null ? ' · ' + m.snr.toFixed(1) + ' dB' : '');
+            sig.classList.remove('d-none');
+        }
+        var time = el.querySelector('time');
+        time.setAttribute('datetime', m.receivedAt);
+        time.textContent = formatTime(m.receivedAt);
+        if (mine) {
+            var icon = el.querySelector('[data-status]');
+            icon.classList.remove('d-none');
+            setStatus(icon, m);
+        }
+        return el;
+    }
+
+    function nearBottom() {
+        return window.innerHeight + window.scrollY >= document.body.scrollHeight - 200;
+    }
+
+    /** Adds a message or updates the one already shown (e.g. its delivery tick). */
+    function upsert(m) {
+        if (conversationKey(m) !== key) { return false; }
+        var existing = chat.querySelector('[data-id="' + m.id + '"]');
+        if (existing) {
+            var icon = existing.querySelector('[data-status]');
+            if (icon && m.direction === 'Outgoing') { setStatus(icon, m); }
+            return false;
+        }
+        var stick = nearBottom();
+        chat.insertBefore(render(m), end);
+        var empty = chat.querySelector('[data-empty]');
+        if (empty) { empty.classList.add('d-none'); }
+        if (stick || m.direction === 'Outgoing') { end.scrollIntoView({ block: 'end', behavior: 'smooth' }); }
+        return m.direction === 'Incoming';
+    }
+
+    // ---- Read markers ------------------------------------------------------------------
+
+    function markRead() {
+        if (document.visibilityState !== 'visible' || !token) { return; }
+        var id = newestId();
+        if (!id) { return; }
+
+
+        var body = new URLSearchParams({ key: key, messageId: String(id), __RequestVerificationToken: token.value });
+        fetch(chat.dataset.readUrl, { method: 'POST', body: body, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+            .then(function () { document.dispatchEvent(new CustomEvent('mesh:read')); });
+    }
+
+    document.addEventListener('mesh:message', function (e) {
+        var m = e.detail;
+        // Seen right away if the tab is visible; otherwise marked read when it becomes visible again.
+        if (upsert(m) && m.status === 'None') {
+            markRead();
+        }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') { markRead(); }
+    });
+
+    // ---- Catch up after the live connection was down ---------------------------------------
+    document.addEventListener('mesh:reconnected', function () {
+        fetch(chat.dataset.updatesUrl + '?key=' + encodeURIComponent(key) + '&after=' + newestId(),
+            { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+            .then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (messages) {
+                var any = false;
+                messages.forEach(function (m) { any = upsert(m) || any; });
+                if (any) { markRead(); }
+            });
+    });
+
+    // ---- Send without leaving the page --------------------------------------------------------
+    if (composer) {
+        var textarea = composer.querySelector('textarea');
+        var button = composer.querySelector('[type=submit]');
+        var error = composer.querySelector('[data-send-error]');
+
+        composer.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (button.disabled) { return; }
+            button.disabled = true;
+            error.classList.add('d-none');
+            fetch(composer.action, {
+                method: 'POST',
+                body: new URLSearchParams(new FormData(composer)),
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'fetch' },
+            }).then(function (r) {
+                return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+            }).then(function (result) {
+                if (!result.ok) { throw new Error(result.data.error || 'Sending failed.'); }
+                upsert(result.data);
+                textarea.value = '';
+                textarea.dispatchEvent(new Event('input'));
+            }).catch(function (err) {
+                error.textContent = err.message || 'Sending failed.';
+                error.classList.remove('d-none');
+            }).finally(function () {
+                textarea.dispatchEvent(new Event('input')); // re-evaluates the button state
+                textarea.focus();
+            });
+        });
+    }
+})();

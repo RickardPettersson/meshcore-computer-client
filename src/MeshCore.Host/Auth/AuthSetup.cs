@@ -63,7 +63,20 @@ public static class AuthSetup
             {
                 o.MapInboundClaims = false;
                 o.TokenValidationParameters = tokens.ValidationParameters();
-                o.Events = new JwtBearerEvents { OnTokenValidated = RejectRevokedTokensAsync };
+                o.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = RejectRevokedTokensAsync,
+                    // Browsers can't set headers on WebSockets, so SignalR clients pass the token in the query string.
+                    // Accept that only for the API hub, never for ordinary API calls (query strings end up in logs).
+                    OnMessageReceived = ctx =>
+                    {
+                        if (ctx.Request.Path.StartsWithSegments("/api/v1/hub") && ctx.Request.Query["access_token"] is { Count: > 0 } token)
+                        {
+                            ctx.Token = token.ToString();
+                        }
+                        return Task.CompletedTask;
+                    },
+                };
             });
 
         services.AddAuthorizationBuilder()

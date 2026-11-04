@@ -89,6 +89,57 @@ public sealed class ChannelEntity
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+/// <summary>How far a user has read in one conversation. Unread = incoming messages with a higher Id.</summary>
+public sealed class ReadMarkerEntity
+{
+    public required string UserId { get; set; }
+
+    /// <summary>See <see cref="ConversationKey"/>.</summary>
+    public required string ConversationKey { get; set; }
+
+    public long LastReadMessageId { get; set; }
+}
+
+/// <summary>Stable string ids for conversations: <c>c:3</c> for channel 3, <c>d:&lt;12 hex&gt;</c> for a contact.</summary>
+public static class ConversationKey
+{
+    public static string Channel(byte index) => $"c:{index}";
+
+    public static string Direct(string keyPrefix) => $"d:{keyPrefix}";
+
+    public static string Of(MessageEntity m)
+    {
+        ArgumentNullException.ThrowIfNull(m);
+        return m.Kind == MessageKind.Channel ? Channel(m.ChannelIndex ?? 0) : Direct(m.ContactKeyPrefix ?? "");
+    }
+
+    /// <summary>Parses a key back into its parts; false if it isn't one of ours.</summary>
+    public static bool TryParse(string? key, out MessageKind kind, out string? contactKeyPrefix, out byte? channelIndex)
+    {
+        kind = default;
+        contactKeyPrefix = null;
+        channelIndex = null;
+        if (key is null || key.Length < 3 || key[1] != ':')
+        {
+            return false;
+        }
+        var value = key[2..];
+        switch (key[0])
+        {
+            case 'c' when byte.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var idx):
+                kind = MessageKind.Channel;
+                channelIndex = idx;
+                return true;
+            case 'd' when value.Length == 12 && value.All(Uri.IsHexDigit):
+                kind = MessageKind.Direct;
+                contactKeyPrefix = value.ToLowerInvariant();
+                return true;
+            default:
+                return false;
+        }
+    }
+}
+
 public sealed class MessageEntity
 {
     public long Id { get; set; }

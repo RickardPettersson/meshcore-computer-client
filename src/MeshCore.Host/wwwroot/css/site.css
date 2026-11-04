@@ -135,3 +135,25 @@ body {
 }
 
 .min-w-0 { min-width: 0; }
+
+/* ---- Live updates ---------------------------------------------------------------- */
+
+.app-sidebar .nav-link .app-unread { margin-left: auto; }
+
+.app-tab-badge {
+    position: absolute;
+    top: -.35rem;
+    right: -.9rem;
+    font-size: .6rem;
+}
+
+.app-tab-badge .badge { padding: .2em .45em; }
+
+.app-toasts {
+    top: calc(var(--app-topbar-height) + env(safe-area-inset-top, 0px));
+    z-index: 1090;
+}
+
+@media (min-width: 768px) {
+    .app-toasts { top: 0; }
+}

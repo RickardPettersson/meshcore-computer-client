@@ -1,0 +1,2 @@
+@model int
+<span class="badge rounded-pill text-bg-danger app-unread @(Model == 0 ? "d-none" : "")" data-unread-total="@Model" aria-label="@Model unread">@(Model > 99 ? "99+" : Model.ToString())</span>

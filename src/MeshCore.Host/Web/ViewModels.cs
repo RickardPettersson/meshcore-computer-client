@@ -85,5 +85,6 @@ public sealed record DevicePageViewModel(DeviceResponse Device, BatteryResponse?
 public sealed record ChannelsPageViewModel(IReadOnlyList<ChannelResponse> Channels, int? MaxChannels, ChannelSecretResponse? Revealed);
 
 public sealed record ChatViewModel(
+    string Key,
     string Title, string? Subtitle, string? ContactKey, byte? ChannelIndex, IReadOnlyList<MessageResponse> Messages,
     IReadOnlyDictionary<string, string> UserNames, int MaxBytes, string? Draft);

@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <div class="me-auto">
         <h1 class="h3 mb-0">Chats</h1>
-        <p class="text-body-secondary small mb-0">Channels, and contacts you've messaged</p>
+        <p class="text-body-secondary small mb-0">Channels, and contacts you've messaged. Updates live.</p>
     </div>
     <a class="btn btn-sm btn-outline-primary" asp-controller="Contacts" asp-action="Index"><i class="bi bi-pencil-square" aria-hidden="true"></i> New message</a>
 </div>
@@ -14,10 +14,8 @@
 }
 else
 {
-    <div class="list-group">
-        @foreach (var c in Model)
-        {
-            <partial name="_ConversationItem" model="c" />
-        }
+    @* live.js re-fetches this list (Messages/List) when a message arrives. *@
+    <div data-live-list="@Url.Action("List", "Messages")">
+        <partial name="_ConversationList" model="Model" />
     </div>
 }

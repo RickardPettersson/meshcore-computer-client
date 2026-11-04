@@ -4,7 +4,7 @@ A .NET 10 app that connects to a [MeshCore](https://github.com/meshcore-dev/Mesh
 WiFi (TCP) or USB serial. It stores messages, contacts and channels in SQLite, and will host a REST API and a
 responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
-**Status:** phases 1–5 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
+**Status:** phases 1–6 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
 
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
@@ -31,6 +31,8 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
 1. The first visit asks you to create the **Admin** account.
 2. As Admin, add people under **Settings → Users**. Each new user gets a temporary password and chooses their own at first sign-in.
 3. On a phone you get a bottom tab bar. On a desktop you get a sidebar. Light/dark follows the system, with a toggle in Settings.
+4. Chats are **live**: new messages appear without reloading, delivery ticks go ✓ → ✓✓, and each user has their own unread badges.
+   On a phone, use the browser's "Add to Home Screen" to open it like an app.
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
 The site uses plain HTTP for now; HTTPS for LAN use is planned (Phase 8).
@@ -52,8 +54,20 @@ curl -X POST http://127.0.0.1:5081/api/v1/auth/setup -H "content-type: applicati
 Send the returned `accessToken` as `Authorization: Bearer <token>`. Later sign-ins use `POST /api/v1/auth/token`.
 Admins add more users with `POST /api/v1/users`. Each new user must change their temporary password at first sign-in.
 
+**Live updates:** connect a SignalR client to `http://127.0.0.1:5081/api/v1/hub`. Send the token as a bearer header,
+or as `?access_token=` for WebSockets. It sends `message` (new message or delivery status), `radio`, `contacts` and `channels` events.
+
 > The WiFi firmware serves **one client at a time**. While this app runs, don't connect the phone app or
 > `meshcore-cli` to the same radio. If something else takes the radio over, the app waits 2 minutes before reconnecting.
+
+## Try it without a radio
+
+The built-in simulator acts like a companion radio. It has contacts, channels, nodes that chat now and then, ACKs, and occasional replies.
+Nothing is transmitted.
+
+```bash
+dotnet run --project src/MeshCore.Host -- --MeshCore:Connection=simulator --MeshCore:DataDirectory=data-sim
+```
 
 ## Diagnostic CLI
 

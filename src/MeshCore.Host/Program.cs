@@ -2,8 +2,14 @@ using MeshCore.Data;
 using MeshCore.Host.Api;
 using MeshCore.Host.Auth;
 using MeshCore.Host.Radio;
+using MeshCore.Host.Realtime;
 using MeshCore.Host.Web;
 using Microsoft.EntityFrameworkCore;
+
+// One number format everywhere (pages, logs, JSON): "4.05 V", not "4,05 V" depending on the server's Windows locale.
+// Times are rendered in UTC and shown in each viewer's own time zone by site.js.
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = System.Globalization.CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +48,7 @@ builder.Services.AddMeshCoreApi();
 
 // ---- Website (MVC Backend-for-Frontend over the API) -------------------------
 builder.Services.AddMeshCoreWeb(builder.Configuration);
+builder.Services.AddMeshCoreRealtime();
 
 var app = builder.Build();
 
@@ -77,6 +84,8 @@ var separatePorts = webOptions.SeparatePorts && apiPort is not null && webPort i
 
 var apiEndpoints = app.MapControllers();
 var webEndpoints = app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+var webHub = app.MapHub<MeshHub>(MeshHub.WebPath);
+var apiHub = app.MapHub<MeshHub>(MeshHub.ApiPath);
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Api:EnableDocs"))
 {
     app.MapMeshCoreApiDocs();
@@ -92,6 +101,8 @@ if (separatePorts)
     apiEndpoints.RequireHost($"*:{apiPort}");
     health.RequireHost($"*:{apiPort}");
     webEndpoints.RequireHost($"*:{webPort}");
+    webHub.RequireHost($"*:{webPort}");
+    apiHub.RequireHost($"*:{apiPort}");
 }
 
 if (await app.Services.GetRequiredService<UserService>().IsSetupRequiredAsync())

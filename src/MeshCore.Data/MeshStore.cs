@@ -291,6 +291,64 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
         return row;
     }
 
+    // ---- Read markers (per user) ----------------------------------------------
+
+    /// <summary>Records that <paramref name="userId"/> has read <paramref name="conversationKey"/> up to
+    /// <paramref name="messageId"/>. Never moves backwards.</summary>
+    public async Task MarkReadAsync(string userId, string conversationKey, long messageId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(userId);
+        ArgumentException.ThrowIfNullOrEmpty(conversationKey);
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var marker = await db.ReadMarkers.FindAsync([userId, conversationKey], cancellationToken).ConfigureAwait(false);
+        if (marker is null)
+        {
+            db.ReadMarkers.Add(new ReadMarkerEntity { UserId = userId, ConversationKey = conversationKey, LastReadMessageId = messageId });
+        }
+        else if (messageId > marker.LastReadMessageId)
+        {
+            marker.LastReadMessageId = messageId;
+        }
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Unread incoming messages per conversation key for one user (conversations with none are left out).</summary>
+    public async Task<IReadOnlyDictionary<string, int>> GetUnreadCountsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var markers = await db.ReadMarkers.AsNoTracking().Where(r => r.UserId == userId)
+            .ToDictionaryAsync(r => r.ConversationKey, r => r.LastReadMessageId, cancellationToken).ConfigureAwait(false);
+
+        // Only the newest 1000 incoming messages are considered: plenty for badges, and it keeps this cheap.
+        var recent = await db.Messages.AsNoTracking()
+            .Where(m => m.Direction == MessageDirection.Incoming)
+            .OrderByDescending(m => m.Id).Take(1000)
+            .Select(m => new { m.Id, m.Kind, m.ContactKeyPrefix, m.ChannelIndex })
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var m in recent)
+        {
+            var key = m.Kind == MessageKind.Channel ? ConversationKey.Channel(m.ChannelIndex ?? 0) : ConversationKey.Direct(m.ContactKeyPrefix ?? "");
+            if (!markers.TryGetValue(key, out var lastRead) || m.Id > lastRead)
+            {
+                counts[key] = counts.GetValueOrDefault(key) + 1;
+            }
+        }
+        return counts;
+    }
+
+    /// <summary>Messages after <paramref name="afterId"/> in one conversation, oldest first (for catching up after a reconnect).</summary>
+    public async Task<IReadOnlyList<MessageEntity>> GetMessagesAfterAsync(string? contactKeyPrefix, byte? channelIndex, long afterId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var query = db.Messages.AsNoTracking().Where(m => m.Id > afterId);
+        query = contactKeyPrefix is not null
+            ? query.Where(m => m.Kind == MessageKind.Direct && m.ContactKeyPrefix == contactKeyPrefix)
+            : query.Where(m => m.Kind == MessageKind.Channel && m.ChannelIndex == channelIndex);
+        return await query.OrderBy(m => m.Id).Take(200).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     // ---- Queries ------------------------------------------------------------
 
     /// <summary>The newest message of every conversation (one per contact prefix and per channel), newest first.</summary>

@@ -172,12 +172,18 @@ public sealed class ChannelsController(MeshRadio radio) : ControllerBase
 public sealed class MessagesController(MeshRadio radio) : ControllerBase
 {
     /// <summary>Newest first. Filter by <paramref name="contact"/> (key prefix) or <paramref name="channel"/>;
-    /// page back with <paramref name="before"/> = the oldest id you have.</summary>
+    /// page back with <paramref name="before"/> = the oldest id you have. With <paramref name="after"/> (and a
+    /// contact or channel), returns newer messages oldest-first instead, for catching up after a reconnect.</summary>
     [HttpGet]
     public async Task<IEnumerable<MessageResponse>> List(
-        [FromQuery] string? contact, [FromQuery] byte? channel, [FromQuery] long? before, [FromQuery] int take = 50, CancellationToken ct = default)
+        [FromQuery] string? contact, [FromQuery] byte? channel, [FromQuery] long? before, [FromQuery] long? after,
+        [FromQuery] int take = 50, CancellationToken ct = default)
     {
         var prefix = contact is { Length: >= 12 } ? contact[..12].ToLowerInvariant() : contact;
+        if (after is { } afterId && (prefix is not null || channel is not null))
+        {
+            return (await radio.Store.GetMessagesAfterAsync(prefix, channel, afterId, ct)).Select(MessageResponse.From);
+        }
         return (await radio.Store.GetMessagesAsync(prefix, channel, before, take, ct)).Select(MessageResponse.From);
     }
 
@@ -210,16 +216,33 @@ public sealed class ConversationsController(MeshRadio radio) : ControllerBase
         var latest = await radio.Store.GetLatestPerConversationAsync(ct);
         var channels = await radio.Store.GetChannelsAsync(ct);
         var contacts = (await radio.Store.GetContactsAsync(includeRemoved: true, ct)).ToDictionary(c => c.KeyPrefix);
+        var unread = await radio.Store.GetUnreadCountsAsync(User.UserId(), ct);
 
-        var channelChats = channels.Select(c => new ConversationResponse(
-            Data.MessageKind.Channel, null, c.Index, c.Name,
-            latest.FirstOrDefault(m => m.Kind == Data.MessageKind.Channel && m.ChannelIndex == c.Index) is { } m ? MessageResponse.From(m) : null));
-        var directChats = latest.Where(m => m.Kind == Data.MessageKind.Direct && m.ContactKeyPrefix is not null).Select(m => new ConversationResponse(
-            Data.MessageKind.Direct, m.ContactKeyPrefix, null,
-            contacts.TryGetValue(m.ContactKeyPrefix!, out var c) ? c.Name : m.ContactKeyPrefix!, MessageResponse.From(m)));
+        var channelChats = channels.Select(c =>
+        {
+            var key = Data.ConversationKey.Channel(c.Index);
+            var last = latest.FirstOrDefault(m => m.Kind == Data.MessageKind.Channel && m.ChannelIndex == c.Index);
+            return new ConversationResponse(key, Data.MessageKind.Channel, null, c.Index, c.Name,
+                last is null ? null : MessageResponse.From(last), unread.GetValueOrDefault(key));
+        });
+        var directChats = latest.Where(m => m.Kind == Data.MessageKind.Direct && m.ContactKeyPrefix is not null).Select(m =>
+        {
+            var key = Data.ConversationKey.Direct(m.ContactKeyPrefix!);
+            return new ConversationResponse(key, Data.MessageKind.Direct, m.ContactKeyPrefix, null,
+                contacts.TryGetValue(m.ContactKeyPrefix!, out var c) ? c.Name : m.ContactKeyPrefix!, MessageResponse.From(m), unread.GetValueOrDefault(key));
+        });
 
         return channelChats.Concat(directChats)
             .OrderByDescending(c => c.LastMessage?.Id ?? 0)
             .ThenBy(c => c.ChannelIndex ?? 255);
+    }
+
+    /// <summary>Marks a conversation as read (for the signed-in user only) up to a message.</summary>
+    [HttpPost("read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> MarkRead(MarkReadRequest request, CancellationToken ct)
+    {
+        await radio.Store.MarkReadAsync(User.UserId(), request.Key.ToLowerInvariant(), request.MessageId, ct);
+        return NoContent();
     }
 }

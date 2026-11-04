@@ -112,6 +112,14 @@ public sealed class MeshApiClient(HttpClient http)
         return GetAsync<MessageResponse[]>($"messages?{string.Join('&', query)}", ct);
     }
 
+    public Task<MessageResponse[]> MessagesAfterAsync(string? contact, byte? channel, long afterId, CancellationToken ct = default) =>
+        GetAsync<MessageResponse[]>(contact is not null
+            ? $"messages?contact={Uri.EscapeDataString(contact)}&after={afterId}"
+            : $"messages?channel={channel}&after={afterId}", ct);
+
+    public Task MarkReadAsync(string conversationKey, long messageId, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Post, "conversations/read", new MarkReadRequest(conversationKey, messageId), ct);
+
     public Task<MessageResponse> SendDirectAsync(string contact, string text, CancellationToken ct = default) =>
         PostAsync<MessageResponse>("messages/direct", new SendDirectRequest(contact, text), ct);
 

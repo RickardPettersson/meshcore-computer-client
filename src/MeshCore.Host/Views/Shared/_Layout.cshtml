@@ -18,8 +18,14 @@
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
     <link rel="icon" href="~/img/icon.svg" type="image/svg+xml">
+    <link rel="manifest" href="~/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="~/img/icon-192.png">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="MeshCore">
 </head>
-<body class="@(signedIn ? "app-signed-in" : "app-public")">
+<body class="@(signedIn ? "app-signed-in" : "app-public")" data-hub="@(signedIn ? Url.Content("~/hubs/mesh") : null)" data-unread-url="@(signedIn ? Url.Action("UnreadCount", "Messages") : null)">
     <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 bg-body z-3" href="#main">Skip to content</a>
 
     @if (signedIn)
@@ -33,7 +39,7 @@
             <div class="px-3 pb-3">@await Component.InvokeAsync("RadioStatus")</div>
             <ul class="nav nav-pills flex-column px-2 gap-1">
                 <li class="nav-item"><a class="nav-link @Active("Home")" aria-current="@Current("Home")" asp-controller="Home" asp-action="Index"><i class="bi bi-house" aria-hidden="true"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><i class="bi bi-chat-dots" aria-hidden="true"></i> Chats</a></li>
+                <li class="nav-item"><a class="nav-link @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><i class="bi bi-chat-dots" aria-hidden="true"></i> <span class="me-auto">Chats</span>@await Component.InvokeAsync("UnreadBadge")</a></li>
                 <li class="nav-item"><a class="nav-link @Active("Contacts")" aria-current="@Current("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i> Contacts</a></li>
                 <li class="nav-item"><a class="nav-link @Active("Channels")" aria-current="@Current("Channels")" asp-controller="Channels" asp-action="Index"><i class="bi bi-hash" aria-hidden="true"></i> Channels</a></li>
                 <li class="nav-item"><a class="nav-link @Active("Device")" aria-current="@Current("Device")" asp-controller="Device" asp-action="Index"><i class="bi bi-cpu" aria-hidden="true"></i> Device</a></li>
@@ -77,7 +83,7 @@
         @* ---- Mobile bottom tab bar ---- *@
         <nav class="app-tabbar d-flex d-md-none border-top bg-body-tertiary" aria-label="Main">
             <a class="app-tab @Active("Home")" aria-current="@Current("Home")" asp-controller="Home" asp-action="Index"><i class="bi bi-house" aria-hidden="true"></i><span>Home</span></a>
-            <a class="app-tab @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><i class="bi bi-chat-dots" aria-hidden="true"></i><span>Chats</span></a>
+            <a class="app-tab @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><span class="position-relative"><i class="bi bi-chat-dots" aria-hidden="true"></i><span class="app-tab-badge">@await Component.InvokeAsync("UnreadBadge")</span></span><span>Chats</span></a>
             <a class="app-tab @Active("Contacts")" aria-current="@Current("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i><span>Contacts</span></a>
             <a class="app-tab @Active("Channels")" aria-current="@Current("Channels")" asp-controller="Channels" asp-action="Index"><i class="bi bi-hash" aria-hidden="true"></i><span>Channels</span></a>
             <a class="app-tab @Active("Settings", "Device")" aria-current="@Current("Settings", "Device")" asp-controller="Settings" asp-action="Index"><i class="bi bi-three-dots" aria-hidden="true"></i><span>More</span></a>
@@ -100,6 +106,12 @@
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (signedIn)
+    {
+        <div class="toast-container position-fixed end-0 p-3 app-toasts" id="toasts" aria-live="polite"></div>
+        <script src="~/lib/signalr/dist/browser/signalr.min.js"></script>
+        <script src="~/js/live.js" asp-append-version="true"></script>
+    }
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

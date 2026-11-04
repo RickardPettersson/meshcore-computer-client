@@ -1,0 +1,7 @@
+@model ConversationResponse[]
+<div class="list-group" id="conversation-list">
+    @foreach (var c in Model)
+    {
+        <partial name="_ConversationItem" model="c" />
+    }
+</div>

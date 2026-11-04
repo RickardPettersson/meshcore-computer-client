@@ -27,7 +27,9 @@ public sealed partial class RadioConnectionService(
         MeshCoreEndpoint? endpoint = null;
         if (!string.Equals(_options.Connection, "auto", StringComparison.OrdinalIgnoreCase))
         {
-            endpoint = MeshCoreEndpoint.Parse(_options.Connection);
+            endpoint = string.Equals(_options.Connection, SimulatorEndpoint.Name, StringComparison.OrdinalIgnoreCase)
+                ? new SimulatorEndpoint(_options.SimulatorMessageInterval)
+                : MeshCoreEndpoint.Parse(_options.Connection);
         }
         var description = endpoint?.ToString() ?? "USB (auto-detect)";
         var failures = 0;
