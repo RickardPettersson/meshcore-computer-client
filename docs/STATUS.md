@@ -88,4 +88,4 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 | `5ec733e` | Phase 1: protocol library |
 | `9795be4` | Phase 2: client with WiFi (TCP) and USB serial transports |
 | `90282e5` | Phase 3: SQLite storage, radio connection service and console chat |
-| `phase-4-api` | Phase 4: REST API, authentication and user management |
+| `1b9915d` | Phase 4: REST API, authentication and user management |
