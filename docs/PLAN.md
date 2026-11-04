@@ -90,9 +90,10 @@ package, and don't depend on ASP.NET.
   - Uses a `SemaphoreSlim(1)` command lane, sending one request and awaiting the matching response code with a timeout.
   - Exposes pushes as `IAsyncEnumerable` / `Channel<T>` events: `MessageReceived`, `AdvertReceived`, `SendConfirmed`, `PathUpdated`…
   - Uses typed methods (`GetContactsAsync`, `SendTextAsync`, `GetChannelAsync`, …), with one encoder/decoder per command.
-- **`DeviceHostedService`** (`BackgroundService`) connects, runs the handshake and drains messages to the DB.
+- **`RadioConnectionService`** (`BackgroundService`) connects, runs the handshake, and hands the client to **`MeshRadio`**.
+  `MeshRadio` is the single owner of the radio: it syncs contacts, channels and messages into SQLite, sends messages, and raises events for the UI.
   It reconnects with backoff when the cable is unplugged or WiFi drops, and publishes connection state.
-  When another client takes over the radio over WiFi, it backs off (30 s, then longer) instead of fighting
+  When another client takes over the radio over WiFi, it waits `TakeoverBackoff` (default 2 min) instead of fighting
   for the connection, and shows "radio in use elsewhere" in the UI.
 - **Persistence is required.** `SYNC_NEXT_MESSAGE` *removes* messages from the radio's queue, so the app
   must store them (SQLite) or they are lost. The contacts and channels caches are refreshed on connect and on push.
@@ -226,7 +227,7 @@ Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:C
 |---|---|---|
 | 1 | Solution scaffold, protocol library (framing + codes + core codecs), unit tests | Golden-frame tests pass |
 | 2 | TCP + serial transports, endpoint parsing, USB auto-detect, `MeshCoreClient`, handshake, `meshcore-cli` diagnostic tool | ✅ `meshcore-cli info` works against the Heltec V4 over WiFi |
-| 3 | SQLite persistence, message sync service, send direct/channel messages | Can chat from the console log |
+| 3 | SQLite persistence (EF Core migrations), `RadioConnectionService` + `MeshRadio`, send direct/channel messages with ACK tracking, console chat | ✅ Connected to the Heltec; takeover backoff verified |
 | 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | Scalar UI exercises every endpoint; a User gets 403 on admin endpoints |
 | 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Contacts, Channels, Device, Settings → Users | Works on a phone and a desktop; admin can add a user who then logs in |
 | 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest | Real-time chat in phone and desktop browsers |

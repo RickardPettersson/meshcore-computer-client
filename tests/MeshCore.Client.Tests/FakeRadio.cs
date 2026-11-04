@@ -41,6 +41,9 @@ internal sealed class FakeRadio : ITransport
 
     public void Unplug() => _toApp.Writer.TryComplete(new IOException("The device was removed."));
 
+    /// <summary>What a WiFi radio does when another client connects: closes our socket cleanly.</summary>
+    public void CloseByRemote() => _toApp.Writer.TryComplete(new EndOfStreamException("fake closed the connection."));
+
     public Task OpenAsync(CancellationToken cancellationToken = default)
     {
         Opened = true;

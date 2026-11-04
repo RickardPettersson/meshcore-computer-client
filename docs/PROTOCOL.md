@@ -139,6 +139,16 @@ All offsets include the code byte at `[0]`.
 ## 4. Gotchas found in the source
 
 - `SYNC_NEXT_MESSAGE` **removes** the message from the radio's queue, so the app must save it itself.
+  `MeshRadio.SyncMessagesAsync` stores each message before it pops the next one.
+- **Text limit is 160 bytes** (`MAX_TEXT_LEN` = 10 × 16-byte cipher blocks, in
+  [`BaseChatMesh.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/BaseChatMesh.h)).
+  The radio rejects a longer direct message.
+- **Channel messages get our name added by the radio.**
+  [`BaseChatMesh::sendGroupMessage`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/BaseChatMesh.cpp#L518)
+  writes `"<node name>: <text>"` and **silently cuts it off** at 160 bytes.
+  So the real limit is `160 − len(name) − 2`, which is `ProtocolLimits.MaxChannelTextBytes(name)`.
+  `MeshRadio` rejects longer text before sending, so nothing is cut off without the user knowing.
+  The app sends only the text; receivers see `"name: text"`.
 - `DEVICE_INFO[2]` holds `MAX_CONTACTS / 2`, so the parser multiplies it by 2.
 - `SEND_CHANNEL_TXT_MSG` doesn't check the frame length before reading the timestamp.
   `Commands.SendChannelTextMessage` always writes the full header.

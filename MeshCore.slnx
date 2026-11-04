@@ -1,10 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/MeshCore.Client/MeshCore.Client.csproj" />
+    <Project Path="src/MeshCore.Data/MeshCore.Data.csproj" />
+    <Project Path="src/MeshCore.Host/MeshCore.Host.csproj" />
     <Project Path="src/MeshCore.Protocol/MeshCore.Protocol.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MeshCore.Client.Tests/MeshCore.Client.Tests.csproj" />
+    <Project Path="tests/MeshCore.Host.Tests/MeshCore.Host.Tests.csproj" />
     <Project Path="tests/MeshCore.Protocol.Tests/MeshCore.Protocol.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">

@@ -21,6 +21,17 @@ public static class ProtocolLimits
     /// <summary>Group channel shared secret length (128-bit).</summary>
     public const int ChannelSecretSize = 16;
 
+    /// <summary><c>MAX_TEXT_LEN</c> in <c>BaseChatMesh.h</c> (10 × 16-byte cipher blocks). Longer direct
+    /// messages are rejected by the radio.</summary>
+    public const int MaxTextBytes = 160;
+
+    /// <summary>
+    /// Text budget for a channel message. The radio prepends <c>"&lt;node name&gt;: "</c> and silently
+    /// truncates the result to <see cref="MaxTextBytes"/> (<c>BaseChatMesh::sendGroupMessage</c>).
+    /// </summary>
+    public static int MaxChannelTextBytes(string nodeName) =>
+        Math.Max(0, MaxTextBytes - System.Text.Encoding.UTF8.GetByteCount(nodeName ?? "") - 2);
+
     /// <summary>Protocol version this client announces in <c>CMD_DEVICE_QUERY</c> / <c>CMD_APP_START</c>.
     /// Version 3+ makes the radio send V3 message frames that include SNR.</summary>
     public const byte AppProtocolVersion = 3;

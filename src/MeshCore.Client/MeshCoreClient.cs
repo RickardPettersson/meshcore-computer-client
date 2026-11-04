@@ -349,6 +349,11 @@ public sealed partial class MeshCoreClient : IAsyncDisposable
         {
             LogClosed(_transport.Description);
         }
+        else if (error is EndOfStreamException)
+        {
+            // The remote end closed the link cleanly (e.g. WiFi takeover); no stack trace needed.
+            LogRemoteClosed(_transport.Description, error.Message);
+        }
         else
         {
             LogDisconnected(error, _transport.Description);
@@ -416,6 +421,9 @@ public sealed partial class MeshCoreClient : IAsyncDisposable
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Lost connection to {Port}")]
     private partial void LogDisconnected(Exception error, string port);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Lost connection to {Port}: {Reason}")]
+    private partial void LogRemoteClosed(string port, string reason);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Closed connection to {Port}")]
     private partial void LogClosed(string port);

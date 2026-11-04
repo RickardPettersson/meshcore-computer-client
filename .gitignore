@@ -433,3 +433,6 @@ appsettings.auth.json
 *.db-shm
 *.db-wal
 keys/
+
+# App data folder (SQLite DB, keys)
+data/

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MeshCore.Host\MeshCore.Host.csproj" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <!-- Reuse the scripted radio from the client tests. -->
+    <Compile Include="..\MeshCore.Client.Tests\FakeRadio.cs" Link="FakeRadio.cs" />
+  </ItemGroup>
+
+</Project>
