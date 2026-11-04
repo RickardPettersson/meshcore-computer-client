@@ -142,16 +142,40 @@ package, and don't depend on ASP.NET.
 Browser ──cookie──► MVC (Razor views + /bff/*) ──JWT──► REST API ──► MeshCoreClient ──WiFi/USB──► radio
 ```
 
-- The browser **never sees the JWT**. It holds only an HttpOnly, Secure, SameSite=Strict auth cookie
-  plus an antiforgery token.
-- On login, MVC calls `POST /api/v1/auth/token`. It stores the JWT inside the encrypted auth cookie
-  (as an ASP.NET auth ticket) and adds it to API calls from a `DelegatingHandler` on a typed `HttpClient`.
-- Pages (`Dashboard`, `Messages`, `Contacts`, `Channels`, `Device`, `Settings`) are rendered server-side by MVC
-  using the typed API client.
-- Interactive JS (sending a message, live updates) calls the **MVC's own `/bff/api/*`**. A **YARP** reverse-proxy
-  route there swaps the cookie for the bearer token. SignalR is proxied the same way.
-- The API and the web UI are **separate Kestrel endpoints in one process**: the API on `:5081` (localhost only by
-  default) and the web UI on `:5080`. The API can still be opened up to other clients, such as a mobile app or Home Assistant.
+**Built in Phase 5:**
+
+- The browser **never sees the JWT**. It holds only the `MeshCore.Auth` cookie (HttpOnly, SameSite=Strict, Secure when
+  `Web:RequireHttps` is on) and an antiforgery token.
+- **Sign-in:**
+  - MVC calls `POST /api/v1/auth/token` and copies the token's claims into a cookie identity.
+  - The JWT itself goes inside the encrypted cookie ticket (`StoreTokens`).
+  - The cookie expires together with the token, with no sliding expiry.
+- **Calling the API:**
+  - `MeshApiClient` (typed `HttpClient`) is the website's only way to data.
+  - `ApiTokenHandler` (`DelegatingHandler`) adds the user's token to each call.
+  - If the API answers 401, for example because a user was disabled or reset, the cookie is cleared and the user goes back to sign-in.
+- **Two sign-in schemes, one set of policies:**
+  - A policy scheme forwards `/api/*` to JWT bearer and everything else to the cookie.
+  - The API **never accepts the cookie**, so other sites can't make a signed-in browser call it (CSRF).
+  - Every website form is protected by `[AutoValidateAntiforgeryToken]` on the `WebController` base class.
+- **Separate ports in one process** (`Kestrel:Endpoints`):
+  - The API is on `127.0.0.1:5081` and the website on `0.0.0.0:5080`.
+  - With `Web:SeparatePorts` (on by default), routes only match on their own port (`RequireHost`).
+  - The API can't be reached through the website's port, and the API port isn't reachable from the LAN at all.
+- **Pages** are rendered on the server:
+  - Dashboard, Chats (list and thread with a send form), Contacts, Channels (add, edit, show key, delete), and Device.
+  - Settings, with Users for Admins.
+  - Every page works without JavaScript.
+- **Behaviour:**
+  - First-run gate middleware sends every page to `/Account/Setup` until an Admin exists.
+  - A filter sends users with a temporary password to change it before anything else.
+  - API failures become messages on the page, or a friendly error page when the radio is offline.
+- **Security headers** on every page:
+  - A strict CSP (`default-src 'self'`, no inline script or style). Everything is served locally, with Bootstrap restored by LibMan.
+  - `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy` and `Permissions-Policy`.
+
+**Phase 6 (live chat):** the browser gets live updates over SignalR through the same cookie session. Any extra JS calls go
+through the MVC side rather than straight to the API, with a YARP route if needed.
 
 ### Users and login (multi-user from day one)
 
@@ -251,7 +275,7 @@ Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:C
 | 2 | TCP + serial transports, endpoint parsing, USB auto-detect, `MeshCoreClient`, handshake, `meshcore-cli` diagnostic tool | ✅ `meshcore-cli info` works against the Heltec V4 over WiFi |
 | 3 | SQLite persistence (EF Core migrations), `RadioConnectionService` + `MeshRadio`, send direct/channel messages with ACK tracking, console chat | ✅ Connected to the Heltec; takeover backoff verified |
 | 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | ✅ Verified against the Heltec; a User gets 403 on admin endpoints (tested) |
-| 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Contacts, Channels, Device, Settings → Users | Works on a phone and a desktop; admin can add a user who then logs in |
+| 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Chats, Contacts, Channels, Device, Settings → Users | ✅ Checked at phone and desktop sizes against the Heltec; Admin adds a user who signs in (tested) |
 | 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest | Real-time chat in phone and desktop browsers |
 | 7 | Advanced: repeater login/status/telemetry/trace/CLI, radio settings, key import/export | Full feature coverage |
 | 8 | Polish: reconnect UX, logging (Serilog → console/file), `dotnet publish` single-file exe, README | One exe to run |

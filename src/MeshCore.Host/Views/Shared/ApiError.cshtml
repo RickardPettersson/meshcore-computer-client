@@ -1,0 +1,12 @@
+@model ApiException
+@{ ViewData["Title"] = Model.Title; }
+<div class="text-center py-5 mx-auto app-narrow">
+    <i class="bi @(Model.Status == System.Net.HttpStatusCode.ServiceUnavailable ? "bi-wifi-off" : "bi-exclamation-octagon") display-4 text-body-secondary" aria-hidden="true"></i>
+    <h1 class="h4 mt-3">@Model.Title</h1>
+    <p class="text-body-secondary">@Model.Detail</p>
+    @if (Model.Status == System.Net.HttpStatusCode.ServiceUnavailable)
+    {
+        <p class="small text-body-secondary">The app reconnects to the radio automatically. Check the <a asp-controller="Device" asp-action="Index">Device</a> page for its status.</p>
+    }
+    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Back to the dashboard</a>
+</div>

@@ -4,7 +4,7 @@ A .NET 10 app that connects to a [MeshCore](https://github.com/meshcore-dev/Mesh
 WiFi (TCP) or USB serial. It stores messages, contacts and channels in SQLite, and will host a REST API and a
 responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
-**Status:** phases 1–4 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
+**Status:** phases 1–5 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
 
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
@@ -23,6 +23,22 @@ dotnet run --project src/MeshCore.Host -- --MeshCore:Connection=192.168.1.212:50
 
 When started in a terminal you get a console chat. Type text to send it to the current channel, or `/help` for the commands.
 Data is stored in `src/MeshCore.Host/data/`: the SQLite database, encryption keys, and `appsettings.auth.json` with the users.
+
+## Website
+
+Open **http://localhost:5080** on this computer, or **http://&lt;this computer's IP&gt;:5080** from a phone on the same network.
+
+1. The first visit asks you to create the **Admin** account.
+2. As Admin, add people under **Settings → Users**. Each new user gets a temporary password and chooses their own at first sign-in.
+3. On a phone you get a bottom tab bar. On a desktop you get a sidebar. Light/dark follows the system, with a toggle in Settings.
+
+Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
+The site uses plain HTTP for now; HTTPS for LAN use is planned (Phase 8).
+
+| Port | What | Reachable from |
+|---|---|---|
+| 5080 | Website | your network (`Kestrel:Endpoints:Web`) |
+| 5081 | REST API | this computer only (`Kestrel:Endpoints:Api`) |
 
 ## REST API
 

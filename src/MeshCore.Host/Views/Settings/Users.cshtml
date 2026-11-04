@@ -1,0 +1,79 @@
+@model UserResponse[]
+@{
+    ViewData["Title"] = "Users";
+    var me = User.FindFirst(MeshClaims.UserId)?.Value;
+}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="me-auto">
+        <h1 class="h3 mb-0">Users</h1>
+        <p class="text-body-secondary small mb-0">Everyone who can sign in to this radio's website and API</p>
+    </div>
+    <a class="btn btn-sm btn-primary" asp-action="CreateUser"><i class="bi bi-person-plus" aria-hidden="true"></i> Add user</a>
+</div>
+
+<div class="list-group">
+    @foreach (var u in Model)
+    {
+        var self = u.Id == me;
+        <div class="list-group-item py-3 @(u.Enabled ? "" : "bg-body-secondary")">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <i class="bi @(u.Role == UserRole.Admin ? "bi-person-fill-gear" : "bi-person") fs-4" aria-hidden="true"></i>
+                <div class="me-auto min-w-0">
+                    <div class="fw-semibold">
+                        @u.Username
+                        @if (self) { <span class="badge text-bg-primary">you</span> }
+                        <span class="badge @(u.Role == UserRole.Admin ? "text-bg-info" : "text-bg-secondary")">@u.Role</span>
+                        @if (!u.Enabled) { <span class="badge text-bg-secondary">disabled</span> }
+                        @if (u.MustChangePassword) { <span class="badge text-bg-warning">temporary password</span> }
+                        @if (u.LockedOut) { <span class="badge text-bg-danger">locked</span> }
+                    </div>
+                    <div class="small text-body-secondary">Added <partial name="_Time" model="@((DateTimeOffset?)u.CreatedUtc)" /> · last sign-in <partial name="_Time" model="u.LastLoginUtc" /></div>
+                </div>
+                @if (!self)
+                {
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Manage</button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <form asp-action="UpdateUser" method="post">
+                                    <input type="hidden" name="id" value="@u.Id">
+                                    <input type="hidden" name="role" value="@(u.Role == UserRole.Admin ? "User" : "Admin")">
+                                    <button class="dropdown-item" type="submit">@(u.Role == UserRole.Admin ? "Make User" : "Make Admin")</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form asp-action="UpdateUser" method="post" data-confirm="@(u.Enabled ? $"Disable {u.Username}? They'll be signed out everywhere." : $"Enable {u.Username}?")" data-confirm-button="@(u.Enabled ? "Disable" : "Enable")">
+                                    <input type="hidden" name="id" value="@u.Id">
+                                    <input type="hidden" name="enabled" value="@(u.Enabled ? "false" : "true")">
+                                    <button class="dropdown-item" type="submit">@(u.Enabled ? "Disable" : "Enable")</button>
+                                </form>
+                            </li>
+                            <li><button class="dropdown-item" type="button" data-bs-toggle="collapse" data-bs-target="#reset-@u.Id" aria-controls="reset-@u.Id">Reset password…</button></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form asp-action="DeleteUser" method="post" data-confirm="Delete @u.Username? This can't be undone." data-confirm-button="Delete">
+                                    <input type="hidden" name="id" value="@u.Id">
+                                    <input type="hidden" name="username" value="@u.Username">
+                                    <button class="dropdown-item text-danger" type="submit">Delete</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                }
+            </div>
+            @if (!self)
+            {
+                <div class="collapse mt-3" id="reset-@u.Id">
+                    <form asp-action="ResetPassword" method="post" class="d-flex flex-wrap gap-2">
+                        <input type="hidden" name="id" value="@u.Id">
+                        <label class="visually-hidden" for="pw-@u.Id">Temporary password for @u.Username</label>
+                        <input id="pw-@u.Id" name="temporaryPassword" class="form-control flex-grow-1 w-auto" minlength="@CredentialRules.MinPasswordLength" required
+                               placeholder="New temporary password (@CredentialRules.MinPasswordLength+ characters)" autocomplete="new-password">
+                        <button class="btn btn-warning" type="submit">Set temporary password</button>
+                    </form>
+                    <div class="form-text">@u.Username is signed out and must choose their own password at next sign-in.</div>
+                </div>
+            }
+        </div>
+    }
+</div>

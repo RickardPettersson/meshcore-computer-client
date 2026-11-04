@@ -2,6 +2,7 @@ using MeshCore.Data;
 using MeshCore.Host.Api;
 using MeshCore.Host.Auth;
 using MeshCore.Host.Radio;
+using MeshCore.Host.Web;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,27 +40,59 @@ if (consoleChat)
 builder.Services.AddMeshCoreAuth(builder.Configuration, dataDirectory);
 builder.Services.AddMeshCoreApi();
 
+// ---- Website (MVC Backend-for-Frontend over the API) -------------------------
+builder.Services.AddMeshCoreWeb(builder.Configuration);
+
 var app = builder.Build();
 
 await app.Services.GetRequiredService<MeshStore>().MigrateAsync();
 await app.Services.GetRequiredService<JwtKeyProvider>().InitializeAsync();
 
-app.UseExceptionHandler();
-app.UseStatusCodePages();
+static bool IsApi(HttpContext http) => http.Request.Path.StartsWithSegments("/api");
+
+// API: problem+json errors. Website: friendly error pages.
+app.UseWhen(IsApi, api => api.UseExceptionHandler().UseStatusCodePages());
+app.UseWhen(http => !IsApi(http), web =>
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        web.UseExceptionHandler("/Account/Error");
+    }
+    web.UseStatusCodePagesWithReExecute("/Account/Status/{0}");
+});
+app.UseMeshCoreSecurityHeaders();
+app.UseStaticFiles();
+app.UseRouting(); // Explicit, after the status-code pages, so re-executed error pages are routed.
+app.UseMeshCoreSetupGate();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-app.MapControllers();
+// The API listens on loopback (5081) and the website on the LAN (5080). With SeparatePorts each is
+// only served on its own port, so the API can't be reached through the website's port.
+var webOptions = app.Configuration.GetSection(WebOptions.SectionName).Get<WebOptions>() ?? new WebOptions();
+var apiPort = WebSetup.PortOf(app.Configuration["Kestrel:Endpoints:Api:Url"]);
+var webPort = WebSetup.PortOf(app.Configuration["Kestrel:Endpoints:Web:Url"]);
+var separatePorts = webOptions.SeparatePorts && apiPort is not null && webPort is not null && apiPort != webPort;
+
+var apiEndpoints = app.MapControllers();
+var webEndpoints = app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Api:EnableDocs"))
 {
     app.MapMeshCoreApiDocs();
 }
 
 // Minimal, unauthenticated liveness probe; details are behind GET /api/v1/device.
-app.MapGet("/healthz", (MeshRadio radio) => Results.Ok(new { radio.Status.State }))
+var health = app.MapGet("/healthz", (MeshRadio radio) => Results.Ok(new { radio.Status.State }))
     .AllowAnonymous()
     .ExcludeFromDescription();
+
+if (separatePorts)
+{
+    apiEndpoints.RequireHost($"*:{apiPort}");
+    health.RequireHost($"*:{apiPort}");
+    webEndpoints.RequireHost($"*:{webPort}");
+}
 
 if (await app.Services.GetRequiredService<UserService>().IsSetupRequiredAsync())
 {

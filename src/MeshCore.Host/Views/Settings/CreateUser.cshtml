@@ -1,0 +1,36 @@
+@model CreateUserViewModel
+@{ ViewData["Title"] = "Add user"; }
+<div class="app-narrow">
+    <partial name="_PageHeader" model="@(("Add user", (string?)"They'll choose their own password at first sign-in"))" />
+    <div class="card"><div class="card-body">
+        <form asp-action="CreateUser" method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label"></label>
+                <input asp-for="Username" class="form-control" autocomplete="off" autocapitalize="none" autofocus>
+                <span asp-validation-for="Username" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="TemporaryPassword" class="form-label"></label>
+                <input asp-for="TemporaryPassword" class="form-control" autocomplete="new-password">
+                <div class="form-text">At least @CredentialRules.MinPasswordLength characters. Tell it to them in person or over a channel you trust.</div>
+                <span asp-validation-for="TemporaryPassword" class="invalid-feedback d-block"></span>
+            </div>
+            <fieldset class="mb-4">
+                <legend class="form-label fs-6">Role</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Role" value="User" id="role-user">
+                    <label class="form-check-label" for="role-user"><strong>User</strong>: read and send messages, see contacts, channels and the device</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Role" value="Admin" id="role-admin">
+                    <label class="form-check-label" for="role-admin"><strong>Admin</strong>: also manage users, channels, contacts and the radio</label>
+                </div>
+            </fieldset>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Add user</button>
+                <a class="btn btn-outline-secondary" asp-action="Users">Cancel</a>
+            </div>
+        </form>
+    </div></div>
+</div>

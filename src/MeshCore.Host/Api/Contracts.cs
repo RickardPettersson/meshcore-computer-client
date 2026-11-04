@@ -113,3 +113,7 @@ public sealed record SendChannelRequest(
     [Required, StringLength(ProtocolLimits.MaxTextBytes, MinimumLength = 1)] string Text);
 
 public sealed record SyncResponse(int NewMessages);
+
+/// <summary>A chat: a channel, or a contact you've exchanged direct messages with.</summary>
+public sealed record ConversationResponse(
+    MessageKind Kind, string? ContactKeyPrefix, byte? ChannelIndex, string Title, MessageResponse? LastMessage);

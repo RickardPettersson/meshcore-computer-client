@@ -1,0 +1,7 @@
+@model (string Title, string? Subtitle)
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="me-auto">
+        <h1 class="h3 mb-0">@Model.Title</h1>
+        @if (Model.Subtitle is { } s) { <p class="text-body-secondary mb-0 small">@s</p> }
+    </div>
+</div>

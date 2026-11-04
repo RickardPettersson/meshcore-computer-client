@@ -6,7 +6,9 @@ using MeshCore.Client.Tests;
 using MeshCore.Client.Transport;
 using MeshCore.Host.Radio;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -41,6 +43,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("MeshCore:Connection", "192.0.2.1:5000");
         builder.UseSetting("MeshCore:ConsoleChat", "false");
         builder.UseSetting("MeshCore:ReconnectDelays:0", "00:00:00.200");
+        builder.UseSetting("Web:SeparatePorts", "false"); // TestServer has no ports
+        builder.UseSetting("Web:ApiBaseUrl", "http://localhost");
         builder.ConfigureLogging(l => l.SetMinimumLevel(LogLevel.Warning));
         builder.ConfigureServices(services =>
         {
@@ -52,6 +56,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
                 return service;
             });
             services.PostConfigure<RadioOptions>(o => o.ReconnectDelays = [TimeSpan.FromMilliseconds(200)]);
+            // The website's API client calls the in-memory server instead of the network.
+            services.AddHttpClient<Web.MeshApiClient>()
+                .ConfigurePrimaryHttpMessageHandler(sp => ((TestServer)sp.GetRequiredService<IServer>()).CreateHandler());
         });
     }
 

@@ -293,6 +293,18 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
 
     // ---- Queries ------------------------------------------------------------
 
+    /// <summary>The newest message of every conversation (one per contact prefix and per channel), newest first.</summary>
+    public async Task<IReadOnlyList<MessageEntity>> GetLatestPerConversationAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var direct = db.Messages.Where(m => m.Kind == MessageKind.Direct).GroupBy(m => m.ContactKeyPrefix).Select(g => g.Max(m => m.Id));
+        var channel = db.Messages.Where(m => m.Kind == MessageKind.Channel).GroupBy(m => m.ChannelIndex).Select(g => g.Max(m => m.Id));
+        return await db.Messages.AsNoTracking()
+            .Where(m => direct.Contains(m.Id) || channel.Contains(m.Id))
+            .OrderByDescending(m => m.Id)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Newest-first page of a conversation. Pass the oldest Id you have as <paramref name="beforeId"/> to page back.</summary>
     public async Task<IReadOnlyList<MessageEntity>> GetMessagesAsync(
         string? contactKeyPrefix = null, byte? channelIndex = null, long? beforeId = null, int take = 50,

@@ -1,0 +1,88 @@
+@model ContactResponse[]
+@{
+    ViewData["Title"] = "Contacts";
+    var isAdmin = User.IsInRole(nameof(UserRole.Admin));
+    var showRemoved = ViewData["ShowRemoved"] is true;
+    string Icon(MeshCore.Protocol.AdvertType t) => t switch
+    {
+        MeshCore.Protocol.AdvertType.Repeater => "bi-router",
+        MeshCore.Protocol.AdvertType.Room => "bi-door-open",
+        MeshCore.Protocol.AdvertType.Sensor => "bi-thermometer-half",
+        _ => "bi-person",
+    };
+}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="me-auto">
+        <h1 class="h3 mb-0">Contacts</h1>
+        <p class="text-body-secondary small mb-0">@Model.Length @(showRemoved ? "including removed" : "on the radio")</p>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" asp-route-removed="@(!showRemoved)">@(showRemoved ? "Hide removed" : "Show removed")</a>
+    <form asp-action="Refresh" method="post"><button class="btn btn-sm btn-outline-primary" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Refresh</button></form>
+</div>
+
+@if (Model.Length == 0)
+{
+    <div class="card"><div class="card-body text-body-secondary">
+        No contacts yet. Nodes are added when the radio hears their advert. Ask a friend to send one, or
+        <a asp-controller="Device" asp-action="Index">send yours</a> so they can add you.
+    </div></div>
+}
+else
+{
+    @* Phone: a list of cards. Desktop: a table. Same data, same actions. *@
+    <div class="list-group d-md-none">
+        @foreach (var c in Model)
+        {
+            <div class="list-group-item py-3 @(c.IsOnRadio ? "" : "opacity-50")">
+                <div class="d-flex gap-3 align-items-start">
+                    <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true"><i class="bi @Icon(c.Type)"></i></span>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex gap-2"><strong class="text-truncate me-auto">@c.Name</strong>@if (c.Favourite) { <i class="bi bi-star-fill text-warning" title="Favourite"></i> }</div>
+                        <div class="small text-body-secondary">@c.Type · @(c.Hops is { } h ? $"{h} hop(s)" : "floods") · <span class="app-mono">@c.KeyPrefix</span></div>
+                        <div class="small text-body-secondary">Heard <partial name="_Time" model="@(c.LastHeard ?? c.LastAdvert)" /></div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    @if (c.Type == MeshCore.Protocol.AdvertType.Chat && c.IsOnRadio)
+                    {
+                        <a class="btn btn-sm btn-primary" asp-controller="Messages" asp-action="Direct" asp-route-id="@c.PublicKey"><i class="bi bi-chat" aria-hidden="true"></i> Message</a>
+                    }
+                    @if (isAdmin && c.IsOnRadio)
+                    {
+                        <partial name="_ContactAdminActions" model="c" />
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="table-responsive d-none d-md-block">
+        <table class="table table-hover align-middle">
+            <thead><tr><th>Name</th><th>Type</th><th>Route</th><th>Key</th><th>Last heard</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr class="@(c.IsOnRadio ? "" : "opacity-50")">
+                        <td><i class="bi @Icon(c.Type) me-1" aria-hidden="true"></i><strong>@c.Name</strong>@if (c.Favourite) { <i class="bi bi-star-fill text-warning ms-1" title="Favourite"></i> }@if (!c.IsOnRadio) { <span class="badge text-bg-secondary ms-1">removed</span> }</td>
+                        <td>@c.Type</td>
+                        <td>@(c.Hops is { } h ? $"{h} hop(s)" : "floods")</td>
+                        <td class="app-mono">@c.KeyPrefix</td>
+                        <td class="small"><partial name="_Time" model="@(c.LastHeard ?? c.LastAdvert)" /></td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-2">
+                                @if (c.Type == MeshCore.Protocol.AdvertType.Chat && c.IsOnRadio)
+                                {
+                                    <a class="btn btn-sm btn-primary" asp-controller="Messages" asp-action="Direct" asp-route-id="@c.PublicKey" aria-label="Message @c.Name"><i class="bi bi-chat" aria-hidden="true"></i></a>
+                                }
+                                @if (isAdmin && c.IsOnRadio)
+                                {
+                                    <partial name="_ContactAdminActions" model="c" />
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

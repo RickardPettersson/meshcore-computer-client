@@ -1,0 +1,112 @@
+@model DevicePageViewModel
+@{
+    ViewData["Title"] = "Device";
+    var d = Model.Device;
+    var isAdmin = User.IsInRole(nameof(UserRole.Admin));
+    var connected = d.State == MeshCore.Host.Radio.RadioState.Connected;
+}
+<partial name="_PageHeader" model="@(("Device", (string?)d.Endpoint))" />
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-plug" aria-hidden="true"></i><span class="me-auto">Connection</span>@await Component.InvokeAsync("RadioStatus")</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-5">State</dt><dd class="col-7">@d.State</dd>
+                    <dt class="col-5">Address</dt><dd class="col-7 app-mono">@d.Endpoint</dd>
+                    <dt class="col-5">Connected since</dt><dd class="col-7"><partial name="_Time" model="d.ConnectedSince" /></dd>
+                    @if (d.LastError is { } err)
+                    {
+                        <dt class="col-5">Last error</dt><dd class="col-7 text-danger">@err</dd>
+                    }
+                    @if (d.NextAttempt is { } next)
+                    {
+                        <dt class="col-5">Next attempt</dt><dd class="col-7"><partial name="_Time" model="@((DateTimeOffset?)next)" /></dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-broadcast-pin me-2" aria-hidden="true"></i>Node</div>
+            <div class="card-body">
+                @if (d.Node is { } n)
+                {
+                    <dl class="row mb-0">
+                        <dt class="col-5">Name</dt><dd class="col-7">@n.Name</dd>
+                        <dt class="col-5">Type</dt><dd class="col-7">@n.Type</dd>
+                        <dt class="col-5">Public key</dt>
+                        <dd class="col-7">
+                            <span class="app-mono">@n.PublicKey[..16]…</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1" data-copy="@n.PublicKey" aria-label="Copy public key"><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+                        </dd>
+                        <dt class="col-5">Location</dt><dd class="col-7">@(n.Latitude == 0 && n.Longitude == 0 ? "not set" : $"{n.Latitude:0.00000}, {n.Longitude:0.00000}")</dd>
+                        <dt class="col-5">Radio</dt><dd class="col-7">@n.Radio.FrequencyMhz.ToString("0.000") MHz · BW @n.Radio.BandwidthKhz.ToString("0.0") kHz · SF@(n.Radio.SpreadingFactor) · CR@(n.Radio.CodingRate)</dd>
+                        <dt class="col-5">TX power</dt><dd class="col-7">@n.Radio.TxPowerDbm dBm (max @n.Radio.MaxTxPowerDbm)</dd>
+                    </dl>
+                }
+                else
+                {
+                    <p class="text-body-secondary mb-0">Not available while the radio is disconnected.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-cpu me-2" aria-hidden="true"></i>Hardware</div>
+            <div class="card-body">
+                @if (d.Hardware is { } h)
+                {
+                    <dl class="row mb-0">
+                        <dt class="col-5">Model</dt><dd class="col-7">@h.Model</dd>
+                        <dt class="col-5">Firmware</dt><dd class="col-7">@h.FirmwareVersion <span class="text-body-secondary small">(@h.FirmwareBuildDate, protocol v@(h.FirmwareVersionCode))</span></dd>
+                        <dt class="col-5">Capacity</dt><dd class="col-7">@h.MaxContacts contacts · @h.MaxChannels channels</dd>
+                        <dt class="col-5">Battery</dt><dd class="col-7">@(Model.Battery is { } b ? $"{b.Volts:0.000} V" : "—")</dd>
+                        <dt class="col-5">Storage</dt><dd class="col-7">@(Model.Battery?.StorageTotalKb is { } t ? $"{Model.Battery.StorageUsedKb} / {t} KB" : "—")</dd>
+                    </dl>
+                }
+                else
+                {
+                    <p class="text-body-secondary mb-0">Not available while the radio is disconnected.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-sliders me-2" aria-hidden="true"></i>Actions</div>
+            <div class="card-body d-grid gap-2">
+                @if (Model.Time is { } time)
+                {
+                    <p class="mb-1 small">
+                        Radio clock: <partial name="_Time" model="@((DateTimeOffset?)time.DeviceTime)" />
+                        <span class="@(Math.Abs(time.DriftSeconds) > 60 ? "text-danger" : "text-body-secondary")">(@time.DriftSeconds.ToString("+0.0;-0.0") s)</span>
+                    </p>
+                }
+                <form asp-action="Advert" method="post" data-confirm="Send our advert to nearby nodes (zero hop)?" data-confirm-button="Send advert">
+                    <input type="hidden" name="flood" value="false">
+                    <button class="btn btn-outline-primary w-100" type="submit" disabled="@(!connected)"><i class="bi bi-megaphone" aria-hidden="true"></i> Send advert (nearby)</button>
+                </form>
+                <form asp-action="Advert" method="post" data-confirm="Flood our advert through the whole mesh? Use this sparingly: it uses airtime on every repeater." data-confirm-button="Flood advert">
+                    <input type="hidden" name="flood" value="true">
+                    <button class="btn btn-outline-primary w-100" type="submit" disabled="@(!connected)"><i class="bi bi-broadcast" aria-hidden="true"></i> Send advert (flood)</button>
+                </form>
+                @if (isAdmin)
+                {
+                    <form asp-action="SyncTime" method="post">
+                        <button class="btn btn-outline-secondary w-100" type="submit" disabled="@(!connected)"><i class="bi bi-clock-history" aria-hidden="true"></i> Set radio clock from this computer</button>
+                    </form>
+                    <form asp-action="Reboot" method="post" data-confirm="Reboot the radio? It will be offline for a few seconds." data-confirm-button="Reboot">
+                        <button class="btn btn-outline-danger w-100" type="submit" disabled="@(!connected)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Reboot radio</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

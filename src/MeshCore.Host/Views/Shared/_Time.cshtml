@@ -1,0 +1,10 @@
+@model DateTimeOffset?
+@* Rendered in UTC with a machine-readable datetime; site.js rewrites it in the viewer's own time zone. *@
+@if (Model is { } t)
+{
+    <time datetime="@t.ToString("o")" data-local-time title="@t.ToString("u")">@t.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</time>
+}
+else
+{
+    <span class="text-body-secondary">—</span>
+}

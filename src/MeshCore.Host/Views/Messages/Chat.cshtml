@@ -1,0 +1,82 @@
+@model ChatViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var me = User.FindFirst(MeshClaims.UserId)?.Value;
+    string StatusIcon(DeliveryStatus s) => s switch
+    {
+        DeliveryStatus.Sending => "bi-clock",
+        DeliveryStatus.Sent => "bi-check2",
+        DeliveryStatus.Delivered => "bi-check2-all",
+        DeliveryStatus.NotConfirmed => "bi-question-circle",
+        DeliveryStatus.Failed => "bi-exclamation-circle",
+        _ => "",
+    };
+}
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to chats"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+    <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true"><i class="bi @(Model.ChannelIndex is null ? "bi-person" : "bi-hash")"></i></span>
+    <div class="min-w-0">
+        <h1 class="h5 mb-0 text-truncate">@Model.Title</h1>
+        <div class="small text-body-secondary">@Model.Subtitle</div>
+    </div>
+</div>
+
+<div class="app-chat" aria-live="polite">
+    @if (Model.Messages.Count == 50)
+    {
+        <a class="btn btn-sm btn-link align-self-center" asp-action="@(Model.ChannelIndex is null ? "Direct" : "Channel")"
+           asp-route-id="@(Model.ContactKey ?? Model.ChannelIndex.ToString())" asp-route-before="@Model.Messages[0].Id">Older messages</a>
+    }
+    @if (Model.Messages.Count == 0)
+    {
+        <p class="text-center text-body-secondary my-5">No messages here yet. Say hello!</p>
+    }
+    @foreach (var m in Model.Messages)
+    {
+        var mine = m.Direction == MessageDirection.Outgoing;
+        <div class="app-bubble @(mine ? "mine" : "theirs")">
+            @if (!mine && Model.ChannelIndex is not null && m.SenderName is { } who)
+            {
+                <div class="fw-semibold small">@who</div>
+            }
+            <div>@m.Text</div>
+            <div class="meta d-flex gap-2 justify-content-end">
+                @if (mine && m.SentByUserId is { } uid && uid != me)
+                {
+                    <span>by @(Model.UserNames.TryGetValue(uid, out var n) ? n : "another user")</span>
+                }
+                @if (!mine)
+                {
+                    <span>@(m.Hops is { } h ? $"{h} hop(s)" : "direct")@(m.Snr is { } s ? $" · {s:0.0} dB" : "")</span>
+                }
+                <partial name="_Time" model="@((DateTimeOffset?)m.ReceivedAt)" />
+                @if (mine)
+                {
+                    <i class="bi @StatusIcon(m.Status)" title="@m.Status@(m.RoundTripMs is { } rt ? $" ({rt} ms)" : "")@(m.Error is { } e ? $": {e}" : "")" aria-label="@m.Status"></i>
+                }
+            </div>
+        </div>
+    }
+    <div id="chat-end"></div>
+</div>
+
+<form class="app-composer border-top" asp-action="Send" method="post">
+    @if (Model.ContactKey is { } key)
+    {
+        <input type="hidden" name="contact" value="@key">
+    }
+    else
+    {
+        <input type="hidden" name="channel" value="@Model.ChannelIndex">
+    }
+    <div class="d-flex gap-2 align-items-end">
+        <label for="text" class="visually-hidden">Message</label>
+        <textarea id="text" name="text" class="form-control" rows="1" required placeholder="Message @Model.Title"
+                  data-byte-limit="@Model.MaxBytes" data-counter="byte-count" autocomplete="off">@Model.Draft</textarea>
+        <button type="submit" class="btn btn-primary" aria-label="Send"><i class="bi bi-send" aria-hidden="true"></i></button>
+    </div>
+    <div class="d-flex small text-body-secondary mt-1">
+        <span class="me-auto">@(Model.ChannelIndex is null ? "Delivery is confirmed by the recipient." : "Channel messages aren't confirmed.")</span>
+        <span id="byte-count">0 / @Model.MaxBytes</span>
+    </div>
+</form>

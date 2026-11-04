@@ -1,0 +1,32 @@
+@model SetupViewModel
+@{ ViewData["Title"] = "Set up"; }
+<div class="app-auth">
+    <div class="text-center mb-4">
+        <img src="~/img/icon.svg" alt="" width="56" height="56">
+        <h1 class="h3 mt-3">Welcome to MeshCore</h1>
+        <p class="text-body-secondary">Create the first account. It becomes the <strong>Admin</strong>, who can add other users later.</p>
+    </div>
+    <div class="card shadow-sm"><div class="card-body p-4">
+        <form asp-action="Setup" method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label"></label>
+                <input asp-for="Username" class="form-control" autocomplete="username" autocapitalize="none" autofocus>
+                <span asp-validation-for="Username" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label"></label>
+                <input asp-for="Password" class="form-control" autocomplete="new-password" aria-describedby="pw-help">
+                <div id="pw-help" class="form-text">At least @CredentialRules.MinPasswordLength characters. A short sentence works well.</div>
+                <span asp-validation-for="Password" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="ConfirmPassword" class="form-label"></label>
+                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password">
+                <span asp-validation-for="ConfirmPassword" class="invalid-feedback d-block"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">Create Admin account</button>
+        </form>
+    </div></div>
+    <p class="small text-body-secondary text-center mt-3">The password is stored only as a one-way hash.</p>
+</div>

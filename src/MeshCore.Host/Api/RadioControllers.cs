@@ -197,3 +197,29 @@ public sealed class MessagesController(MeshRadio radio) : ControllerBase
     [HttpPost("sync")]
     public async Task<SyncResponse> Sync(CancellationToken ct) => new(await radio.SyncMessagesAsync(ct));
 }
+
+/// <summary>The chat list: every channel, plus every contact with direct-message history, most recent first.</summary>
+[ApiController]
+[Route("api/v1/conversations")]
+[Tags("Messages")]
+public sealed class ConversationsController(MeshRadio radio) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IEnumerable<ConversationResponse>> List(CancellationToken ct)
+    {
+        var latest = await radio.Store.GetLatestPerConversationAsync(ct);
+        var channels = await radio.Store.GetChannelsAsync(ct);
+        var contacts = (await radio.Store.GetContactsAsync(includeRemoved: true, ct)).ToDictionary(c => c.KeyPrefix);
+
+        var channelChats = channels.Select(c => new ConversationResponse(
+            Data.MessageKind.Channel, null, c.Index, c.Name,
+            latest.FirstOrDefault(m => m.Kind == Data.MessageKind.Channel && m.ChannelIndex == c.Index) is { } m ? MessageResponse.From(m) : null));
+        var directChats = latest.Where(m => m.Kind == Data.MessageKind.Direct && m.ContactKeyPrefix is not null).Select(m => new ConversationResponse(
+            Data.MessageKind.Direct, m.ContactKeyPrefix, null,
+            contacts.TryGetValue(m.ContactKeyPrefix!, out var c) ? c.Name : m.ContactKeyPrefix!, MessageResponse.From(m)));
+
+        return channelChats.Concat(directChats)
+            .OrderByDescending(c => c.LastMessage?.Id ?? 0)
+            .ThenBy(c => c.ChannelIndex ?? 255);
+    }
+}

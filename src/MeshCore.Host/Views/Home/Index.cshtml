@@ -1,0 +1,82 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var d = Model.Device;
+    var connected = d.State == MeshCore.Host.Radio.RadioState.Connected;
+}
+<partial name="_PageHeader" model="@(("Dashboard", (string?)$"Signed in as {User.Identity!.Name}"))" />
+
+@if (!connected)
+{
+    <div class="alert alert-warning d-flex gap-2" role="status">
+        <i class="bi bi-wifi-off" aria-hidden="true"></i>
+        <div>
+            <strong>The radio isn't connected</strong> (@d.State). @d.LastError
+            @if (d.NextAttempt is { } next)
+            {
+                <span>Next attempt: <partial name="_Time" model="@((DateTimeOffset?)next)" />.</span>
+            }
+            You can still read message history.
+        </div>
+    </div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <a class="card h-100 text-decoration-none app-stat" asp-controller="Device" asp-action="Index">
+            <div class="card-body">
+                <div class="text-body-secondary small"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Node</div>
+                <div class="display-6 text-truncate">@(d.Node?.Name ?? "—")</div>
+                <div class="small text-body-secondary text-truncate">@(d.Hardware?.Model ?? d.Endpoint)</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card h-100 text-decoration-none app-stat" asp-controller="Device" asp-action="Index">
+            <div class="card-body">
+                <div class="text-body-secondary small"><i class="bi bi-battery-half" aria-hidden="true"></i> Battery</div>
+                <div class="display-6">@(Model.Battery is { } b ? b.Volts.ToString("0.00") + " V" : "—")</div>
+                <div class="small text-body-secondary">@(Model.Battery?.StorageTotalKb is { } total ? $"{Model.Battery.StorageUsedKb} / {total} KB storage" : "")</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card h-100 text-decoration-none app-stat" asp-controller="Contacts" asp-action="Index">
+            <div class="card-body">
+                <div class="text-body-secondary small"><i class="bi bi-people" aria-hidden="true"></i> Contacts</div>
+                <div class="display-6">@Model.ContactCount</div>
+                <div class="small text-body-secondary">of @(d.Hardware?.MaxContacts?.ToString() ?? "?")</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card h-100 text-decoration-none app-stat" asp-controller="Channels" asp-action="Index">
+            <div class="card-body">
+                <div class="text-body-secondary small"><i class="bi bi-hash" aria-hidden="true"></i> Channels</div>
+                <div class="display-6">@Model.ChannelCount</div>
+                <div class="small text-body-secondary">of @(d.Hardware?.MaxChannels?.ToString() ?? "?")</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="d-flex align-items-center mb-2">
+    <h2 class="h5 mb-0 me-auto">Recent chats</h2>
+    <a class="btn btn-sm btn-outline-primary" asp-controller="Messages" asp-action="Index">All chats</a>
+</div>
+@if (Model.Recent.Count == 0)
+{
+    <div class="card"><div class="card-body text-body-secondary">
+        No messages yet. When nodes nearby send something, it shows up here.
+        <a asp-controller="Messages" asp-action="Index">Open the chats</a> to send one.
+    </div></div>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var c in Model.Recent)
+        {
+            <partial name="_ConversationItem" model="c" />
+        }
+    </div>
+}

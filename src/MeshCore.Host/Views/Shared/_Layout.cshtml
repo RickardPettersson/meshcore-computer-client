@@ -1,0 +1,105 @@
+@{
+    var signedIn = User.Identity?.IsAuthenticated == true && User.FindFirst(MeshClaims.MustChangePassword)?.Value != "true";
+    var isAdmin = User.IsInRole(nameof(UserRole.Admin));
+    var section = ViewContext.RouteData.Values["controller"] as string;
+    var usersPage = section == "Settings" && ViewContext.RouteData.Values["action"] as string is "Users" or "CreateUser";
+    string Active(params string[] controllers) => controllers.Contains(section) ? "active" : "";
+    string Current(params string[] controllers) => controllers.Contains(section) ? "page" : "false";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>@(ViewData["Title"] is string t ? $"{t} · " : "")MeshCore</title>
+    <script src="~/js/theme.js" asp-append-version="true"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+    <link rel="icon" href="~/img/icon.svg" type="image/svg+xml">
+</head>
+<body class="@(signedIn ? "app-signed-in" : "app-public")">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 bg-body z-3" href="#main">Skip to content</a>
+
+    @if (signedIn)
+    {
+        @* ---- Desktop sidebar ---- *@
+        <nav class="app-sidebar d-none d-md-flex flex-column border-end bg-body-tertiary" aria-label="Main">
+            <a class="app-brand d-flex align-items-center gap-2 px-3 py-3 text-decoration-none text-body" asp-controller="Home" asp-action="Index">
+                <i class="bi bi-broadcast-pin fs-4 text-primary" aria-hidden="true"></i>
+                <span class="fw-semibold">MeshCore</span>
+            </a>
+            <div class="px-3 pb-3">@await Component.InvokeAsync("RadioStatus")</div>
+            <ul class="nav nav-pills flex-column px-2 gap-1">
+                <li class="nav-item"><a class="nav-link @Active("Home")" aria-current="@Current("Home")" asp-controller="Home" asp-action="Index"><i class="bi bi-house" aria-hidden="true"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><i class="bi bi-chat-dots" aria-hidden="true"></i> Chats</a></li>
+                <li class="nav-item"><a class="nav-link @Active("Contacts")" aria-current="@Current("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i> Contacts</a></li>
+                <li class="nav-item"><a class="nav-link @Active("Channels")" aria-current="@Current("Channels")" asp-controller="Channels" asp-action="Index"><i class="bi bi-hash" aria-hidden="true"></i> Channels</a></li>
+                <li class="nav-item"><a class="nav-link @Active("Device")" aria-current="@Current("Device")" asp-controller="Device" asp-action="Index"><i class="bi bi-cpu" aria-hidden="true"></i> Device</a></li>
+                <li class="nav-item"><a class="nav-link @(section == "Settings" && !usersPage ? "active" : "")" aria-current="@(section == "Settings" && !usersPage ? "page" : "false")" asp-controller="Settings" asp-action="Index"><i class="bi bi-gear" aria-hidden="true"></i> Settings</a></li>
+                @if (isAdmin)
+                {
+                    <li class="nav-item"><a class="nav-link ps-4 small @(usersPage ? "active" : "")" aria-current="@(usersPage ? "page" : "false")" asp-controller="Settings" asp-action="Users"><i class="bi bi-person-gear" aria-hidden="true"></i> Users</a></li>
+                }
+            </ul>
+            <div class="mt-auto p-3 border-top d-flex align-items-center gap-2">
+                <i class="bi bi-person-circle fs-5" aria-hidden="true"></i>
+                <div class="small text-truncate me-auto">
+                    <div class="fw-semibold text-truncate">@User.Identity!.Name</div>
+                    <div class="text-body-secondary">@(isAdmin ? "Admin" : "User")</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-theme-toggle title="Switch light/dark" aria-label="Switch light or dark theme"><i class="bi bi-circle-half" aria-hidden="true"></i></button>
+                <form asp-controller="Account" asp-action="Logout" method="post">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Sign out" aria-label="Sign out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button>
+                </form>
+            </div>
+        </nav>
+
+        @* ---- Mobile top bar ---- *@
+        <header class="app-topbar d-flex d-md-none align-items-center gap-2 px-3 border-bottom bg-body-tertiary">
+            <a class="d-flex align-items-center gap-2 text-decoration-none text-body me-auto" asp-controller="Home" asp-action="Index">
+                <i class="bi bi-broadcast-pin fs-5 text-primary" aria-hidden="true"></i><span class="fw-semibold">MeshCore</span>
+            </a>
+            @await Component.InvokeAsync("RadioStatus")
+        </header>
+    }
+
+    <main id="main" class="app-main">
+        <div class="container-xxl py-3 py-md-4">
+            <partial name="_Alerts" />
+            @RenderBody()
+        </div>
+    </main>
+
+    @if (signedIn)
+    {
+        @* ---- Mobile bottom tab bar ---- *@
+        <nav class="app-tabbar d-flex d-md-none border-top bg-body-tertiary" aria-label="Main">
+            <a class="app-tab @Active("Home")" aria-current="@Current("Home")" asp-controller="Home" asp-action="Index"><i class="bi bi-house" aria-hidden="true"></i><span>Home</span></a>
+            <a class="app-tab @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><i class="bi bi-chat-dots" aria-hidden="true"></i><span>Chats</span></a>
+            <a class="app-tab @Active("Contacts")" aria-current="@Current("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i><span>Contacts</span></a>
+            <a class="app-tab @Active("Channels")" aria-current="@Current("Channels")" asp-controller="Channels" asp-action="Index"><i class="bi bi-hash" aria-hidden="true"></i><span>Channels</span></a>
+            <a class="app-tab @Active("Settings", "Device")" aria-current="@Current("Settings", "Device")" asp-controller="Settings" asp-action="Index"><i class="bi bi-three-dots" aria-hidden="true"></i><span>More</span></a>
+        </nav>
+    }
+
+    @* One shared confirmation dialog for forms marked data-confirm="…" *@
+    <div class="modal fade" id="confirm-modal" tabindex="-1" aria-labelledby="confirm-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header"><h2 class="modal-title fs-5" id="confirm-title">Are you sure?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button></div>
+                <div class="modal-body" id="confirm-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirm-ok">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

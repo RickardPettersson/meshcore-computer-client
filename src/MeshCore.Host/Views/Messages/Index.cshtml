@@ -1,0 +1,23 @@
+@model ConversationResponse[]
+@{ ViewData["Title"] = "Chats"; }
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="me-auto">
+        <h1 class="h3 mb-0">Chats</h1>
+        <p class="text-body-secondary small mb-0">Channels, and contacts you've messaged</p>
+    </div>
+    <a class="btn btn-sm btn-outline-primary" asp-controller="Contacts" asp-action="Index"><i class="bi bi-pencil-square" aria-hidden="true"></i> New message</a>
+</div>
+
+@if (Model.Length == 0)
+{
+    <div class="card"><div class="card-body text-body-secondary">No channels or conversations yet.</div></div>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var c in Model)
+        {
+            <partial name="_ConversationItem" model="c" />
+        }
+    </div>
+}

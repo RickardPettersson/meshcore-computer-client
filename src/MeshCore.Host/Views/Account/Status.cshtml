@@ -1,0 +1,10 @@
+@model int
+@{
+    ViewData["Title"] = Model == 404 ? "Not found" : "Something went wrong";
+}
+<div class="text-center py-5 mx-auto app-narrow">
+    <i class="bi @(Model == 404 ? "bi-signpost-split" : "bi-bug") display-4 text-body-secondary" aria-hidden="true"></i>
+    <h1 class="h4 mt-3">@(Model == 404 ? "That page doesn't exist" : $"Something went wrong ({Model})")</h1>
+    <p class="text-body-secondary">@(Model == 404 ? "Check the address, or use the menu." : "Try again in a moment. If it keeps happening, check the app's console log.")</p>
+    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Back to the dashboard</a>
+</div>

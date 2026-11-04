@@ -1,0 +1,27 @@
+@model ChannelEditViewModel
+@{ ViewData["Title"] = Model.IsNew ? "Add channel" : $"Edit {Model.Name}"; }
+<div class="app-narrow">
+    <partial name="_PageHeader" model="@((Model.IsNew ? "Add channel" : "Edit channel", (string?)$"Slot {Model.Index}"))" />
+    <div class="card"><div class="card-body">
+        <form asp-action="Edit" method="post" novalidate>
+            <input type="hidden" asp-for="Index">
+            <input type="hidden" asp-for="IsNew">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" maxlength="31" autofocus>
+                <span asp-validation-for="Name" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="SecretHex" class="form-label"></label>
+                <input asp-for="SecretHex" class="form-control app-mono" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@(Model.IsNew ? "Leave empty to generate a new random key" : "Leave empty to keep the current key")">
+                <div class="form-text">@(Model.IsNew ? "To join an existing channel, paste its 32-character key." : "Only paste a key here to switch this slot to a different channel.")</div>
+                <span asp-validation-for="SecretHex" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save to radio</button>
+                <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div></div>
+</div>

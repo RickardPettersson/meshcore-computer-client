@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -22,6 +23,8 @@ public static class AuthPolicies
 
 public static class AuthSetup
 {
+    private const string SelectorScheme = "BearerOrCookie";
+
     /// <summary>Registers users, password hashing, JWT bearer auth, policies and the auth rate limit.</summary>
     public static IServiceCollection AddMeshCoreAuth(this IServiceCollection services, IConfiguration configuration, string dataDirectory)
     {
@@ -40,7 +43,21 @@ public static class AuthSetup
         services.AddSingleton<JwtKeyProvider>();
         services.AddSingleton<TokenService>();
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        // Two front doors, one set of claims and policies:
+        //  - /api/* accepts ONLY bearer tokens, never the cookie, so a signed-in browser can't be tricked
+        //    into calling the API from another site (CSRF).
+        //  - everything else (the website) uses the cookie.
+        services.AddAuthentication(o =>
+            {
+                o.DefaultScheme = SelectorScheme;
+                o.DefaultChallengeScheme = SelectorScheme;
+            })
+            .AddPolicyScheme(SelectorScheme, "Bearer for /api, cookie for the website", o =>
+                o.ForwardDefaultSelector = http => http.Request.Path.StartsWithSegments("/api")
+                    ? JwtBearerDefaults.AuthenticationScheme
+                    : CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddJwtBearer()
+            .AddCookie();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<TokenService>((o, tokens) =>
             {
@@ -60,9 +77,17 @@ public static class AuthSetup
         services.AddRateLimiter(o =>
         {
             o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            o.AddPolicy(AuthPolicies.AuthRateLimit, http => RateLimitPartition.GetFixedWindowLimiter(
-                http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            o.AddPolicy(AuthPolicies.AuthRateLimit, http =>
+            {
+                var ip = http.Connection.RemoteIpAddress;
+                // The website calls the API over loopback for every browser, and limits per browser IP itself.
+                // Limiting loopback here would make all web users share one bucket. Account lockout still applies.
+                var websiteToApi = ip is not null && System.Net.IPAddress.IsLoopback(ip) && http.Request.Path.StartsWithSegments("/api");
+                return websiteToApi
+                    ? RateLimitPartition.GetNoLimiter("loopback")
+                    : RateLimitPartition.GetFixedWindowLimiter(ip?.ToString() ?? "unknown",
+                        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+            });
         });
 
         return services;

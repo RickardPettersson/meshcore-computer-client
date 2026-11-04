@@ -11,6 +11,11 @@ internal sealed partial class ApiExceptionHandler(IProblemDetailsService problem
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        if (!httpContext.Request.Path.StartsWithSegments("/api"))
+        {
+            return false; // Website pages have their own error page.
+        }
+
         var (status, title) = exception switch
         {
             AuthException { Error: AuthError.Validation } => (StatusCodes.Status400BadRequest, "Invalid request"),

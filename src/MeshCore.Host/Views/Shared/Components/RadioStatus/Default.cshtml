@@ -1,0 +1,15 @@
+@model DeviceResponse?
+@{
+    var (css, icon, text) = Model?.State switch
+    {
+        MeshCore.Host.Radio.RadioState.Connected => ("text-bg-success", "bi-wifi", Model.Node?.Name ?? "Connected"),
+        MeshCore.Host.Radio.RadioState.Connecting => ("text-bg-warning", "bi-arrow-repeat", "Connecting…"),
+        MeshCore.Host.Radio.RadioState.InUseElsewhere => ("text-bg-warning", "bi-person-lock", "In use elsewhere"),
+        MeshCore.Host.Radio.RadioState.WaitingToRetry => ("text-bg-danger", "bi-wifi-off", "Offline"),
+        _ => ("text-bg-secondary", "bi-question-circle", "Unknown"),
+    };
+}
+<a class="badge rounded-pill @css text-decoration-none d-inline-flex align-items-center gap-1 app-status" asp-controller="Device" asp-action="Index"
+   title="@(Model?.LastError ?? Model?.Endpoint)">
+    <i class="bi @icon" aria-hidden="true"></i><span class="text-truncate">@text</span>
+</a>
