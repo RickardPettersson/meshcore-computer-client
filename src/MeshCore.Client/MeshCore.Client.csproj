@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MeshCore.Client</RootNamespace>
+    <Description>Connects to a MeshCore companion radio (USB serial) and exposes typed commands and push events.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MeshCore.Protocol\MeshCore.Protocol.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="System.IO.Ports" />
+    <InternalsVisibleTo Include="MeshCore.Client.Tests" />
+  </ItemGroup>
+
+</Project>

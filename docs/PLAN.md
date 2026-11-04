@@ -1,6 +1,7 @@
 # MeshCore Computer Client — Plan
 
-A .NET 10 console app that talks to any MeshCore **companion radio** firmware over USB serial.
+A .NET 10 console app that talks to any MeshCore **companion radio**: over **WiFi (TCP)** with the companion
+WiFi firmware (the primary setup, a Heltec V4 at `192.168.1.212:5000`), or over **USB serial** with the companion USB firmware.
 It hosts a REST API and a Bootstrap website from the same process.
 
 ## 1. What we're talking to
@@ -12,14 +13,15 @@ Xiao and others. Only the transport differs (USB serial, BLE or WiFi/TCP), so on
 unit. Things that differ per device are read at runtime from `DEVICE_INFO`: max contacts, max channels,
 firmware version and model.
 
-### USB serial framing (from `ArduinoSerialInterface.cpp`)
+### Framing (USB serial and WiFi/TCP share it; see `ArduinoSerialInterface.cpp`, `SerialWifiInterface.cpp`)
 
 | Direction | Frame |
 |---|---|
 | App → radio | `'<'` (0x3C) · len LSB · len MSB · payload |
 | Radio → app | `'>'` (0x3E) · len LSB · len MSB · payload |
 
-- Baud rate is 115200, 8N1. Assert DTR, because some ESP32 boards need it.
+- WiFi: a TCP connection to the radio, default port 5000. The radio serves **one client at a time**.
+- Serial: 115200 baud, 8N1, with DTR asserted (nRF52 boards need it).
 - The first payload byte is the command or response code. Integers are little-endian and strings are UTF-8.
 - There are **no request IDs**. Send one command at a time and wait for its response, with a timeout of about 5 s.
   Responses use codes 0x00–0x7F. Unsolicited **push** frames (0x80+) can arrive at any moment, including
@@ -55,13 +57,15 @@ meshcore-computer-client/
 ├─ MeshCore.slnx
 ├─ src/
 │  ├─ MeshCore.Protocol/      # pure library: framing, codes, encoders/decoders, models. No I/O.
-│  ├─ MeshCore.Client/        # transports (ITransport: Serial now; BLE/TCP later), MeshCoreClient,
+│  ├─ MeshCore.Client/        # transports (ITransport: TCP + Serial; BLE later), MeshCoreClient,
 │  │                          # command queue, push event stream, reconnect, port auto-detect
 │  ├─ MeshCore.Data/          # EF Core + SQLite: messages, contacts cache, channels, ACK state
 │  └─ MeshCore.Host/          # the console app (Microsoft.NET.Sdk.Web)
 │     ├─ Api/                 # REST API controllers  → /api/v1/*
 │     ├─ Web/                 # MVC controllers, views, BFF proxy, SignalR hub
 │     └─ wwwroot/             # Bootstrap 5.3, Bootstrap Icons, site.js/css
+├─ tools/
+│  └─ MeshCore.Cli/           # meshcore-cli: diagnostic console (ports, info, contacts, channels, listen, send)
 └─ tests/
    ├─ MeshCore.Protocol.Tests/   # golden byte-frame tests
    └─ MeshCore.Client.Tests/     # fake-transport tests (no hardware needed)
@@ -72,19 +76,24 @@ package, and don't depend on ASP.NET.
 
 ## 3. Device layer (`MeshCore.Client`)
 
-- **`SerialTransport`** uses `System.IO.Ports`, a background read loop and a frame parser state machine.
-  It resyncs on the `'>'` start byte if a frame is corrupted.
-- **Port auto-detect**: list COM ports and rank them by USB VID/PID:
+- **`StreamTransport`** is the shared base: a background read loop, `FrameDecoder` (resyncs on `'>'`), and a write lock.
+  - **`TcpTransport`** connects over WiFi. It uses a connect timeout, TCP keep-alive, and treats the socket closing as "link lost".
+  - **`SerialTransport`** uses `System.IO.Ports`.
+- **`MeshCoreEndpoint`** parses one address setting: `192.168.1.212[:5000]`, `tcp://host:port`, `COM11`, `/dev/ttyACM0`, or `auto`.
+  `auto` probes USB serial ports.
+- **Port auto-detect** (USB only): list COM ports and rank them by USB VID/PID:
   - nRF52 / T-Echo / RAK: Adafruit `239A`, Nordic `1915`
   - ESP32: CP210x `10C4`, CH340 `1A86`, native `303A`
   - It then **probes** each port with `APP_START` and keeps the first that answers `SELF_INFO`.
-  - Setting `MeshCore:Serial:Port` (e.g. `COM5`) overrides detection.
+  - Setting `MeshCore:Connection` to an address skips detection.
 - **`MeshCoreClient`**:
   - Uses a `SemaphoreSlim(1)` command lane, sending one request and awaiting the matching response code with a timeout.
   - Exposes pushes as `IAsyncEnumerable` / `Channel<T>` events: `MessageReceived`, `AdvertReceived`, `SendConfirmed`, `PathUpdated`…
   - Uses typed methods (`GetContactsAsync`, `SendTextAsync`, `GetChannelAsync`, …), with one encoder/decoder per command.
 - **`DeviceHostedService`** (`BackgroundService`) connects, runs the handshake and drains messages to the DB.
-  It reconnects with backoff when the cable is unplugged and publishes connection state.
+  It reconnects with backoff when the cable is unplugged or WiFi drops, and publishes connection state.
+  When another client takes over the radio over WiFi, it backs off (30 s, then longer) instead of fighting
+  for the connection, and shows "radio in use elsewhere" in the UI.
 - **Persistence is required.** `SYNC_NEXT_MESSAGE` *removes* messages from the radio's queue, so the app
   must store them (SQLite) or they are lost. The contacts and channels caches are refreshed on connect and on push.
 
@@ -110,7 +119,7 @@ package, and don't depend on ASP.NET.
 ## 5. Website — ASP.NET MVC as a BFF (Backend-for-Frontend)
 
 ```
-Browser ──cookie──► MVC (Razor views + /bff/*) ──JWT──► REST API ──► MeshCoreClient ──USB──► radio
+Browser ──cookie──► MVC (Razor views + /bff/*) ──JWT──► REST API ──► MeshCoreClient ──WiFi/USB──► radio
 ```
 
 - The browser **never sees the JWT**. It holds only an HttpOnly, Secure, SameSite=Strict auth cookie
@@ -199,7 +208,7 @@ The interface is designed for the phone first and scaled up to desktop, so it wo
 
 ```json
 {
-  "MeshCore": { "Serial": { "Port": "auto", "BaudRate": 115200 }, "AppName": "MeshCoreComputerClient" },
+  "MeshCore": { "Connection": "192.168.1.212:5000", "AppName": "MeshCoreComputerClient" },
   "Endpoints": { "Web": "http://0.0.0.0:5080", "Api": "http://127.0.0.1:5081" },
   "ConnectionStrings": { "Mesh": "Data Source=meshcore.db" },
   "Auth": { "TokenLifetimeMinutes": 60, "LockoutAttempts": 5, "LockoutMinutes": 15 }
@@ -208,14 +217,15 @@ The interface is designed for the phone first and scaled up to desktop, so it wo
 
 Users and the encrypted JWT key are written by the app to `appsettings.auth.json` (see §5). That file is listed in `.gitignore`.
 
-Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:Serial:Port=COM7`.
+`Connection` takes any address `MeshCoreEndpoint` understands: `192.168.1.212:5000`, `COM11`, or `auto` to probe USB.
+Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:Connection=COM7`.
 
 ## 8. Build phases
 
 | # | Phase | Done when |
 |---|---|---|
 | 1 | Solution scaffold, protocol library (framing + codes + core codecs), unit tests | Golden-frame tests pass |
-| 2 | Serial transport, auto-detect, `MeshCoreClient`, handshake; console prints self info, contacts and channels | Works against the T-Echo |
+| 2 | TCP + serial transports, endpoint parsing, USB auto-detect, `MeshCoreClient`, handshake, `meshcore-cli` diagnostic tool | ✅ `meshcore-cli info` works against the Heltec V4 over WiFi |
 | 3 | SQLite persistence, message sync service, send direct/channel messages | Can chat from the console log |
 | 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | Scalar UI exercises every endpoint; a User gets 403 on admin endpoints |
 | 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Contacts, Channels, Device, Settings → Users | Works on a phone and a desktop; admin can add a user who then logs in |

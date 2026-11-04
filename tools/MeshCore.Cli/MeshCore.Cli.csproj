@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>meshcore-cli</AssemblyName>
+    <RootNamespace>MeshCore.Cli</RootNamespace>
+    <Description>Diagnostic command-line tool for talking to a MeshCore companion radio.</Description>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Console tool: ConfigureAwait and localisation rules add noise without benefit. -->
+    <NoWarn>$(NoWarn);CA2007;CA1303</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MeshCore.Client\MeshCore.Client.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+
+</Project>

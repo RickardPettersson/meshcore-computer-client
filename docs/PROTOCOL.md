@@ -20,6 +20,7 @@ The layouts were checked against MeshCore `main` at commit
 | [`examples/companion_radio/MyMesh.cpp`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/examples/companion_radio/MyMesh.cpp) | **Main reference.** All `CMD_*`, `RESP_CODE_*`, `PUSH_CODE_*`, `ERR_CODE_*` values; command parsing in `handleCmdFrame()`; reply layouts; `writeContactRespFrame()`. Key spots: `CMD_APP_START` [L1076](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/examples/companion_radio/MyMesh.cpp#L1076), `CMD_SET_ADVERT_NAME` [L1259](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/examples/companion_radio/MyMesh.cpp#L1259), `CMD_REBOOT` [L1512](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/examples/companion_radio/MyMesh.cpp#L1512) |
 | [`examples/companion_radio/MyMesh.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/examples/companion_radio/MyMesh.h) | `FIRMWARE_VER_CODE` |
 | [`src/helpers/ArduinoSerialInterface.cpp`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/ArduinoSerialInterface.cpp) | **USB/serial framing**: `writeFrame()` (`'>'` + LE16 length) and the `checkRecvFrame()` state machine (`'<'` + LE16 length) |
+| [`src/helpers/wifi/SerialWifiInterface.cpp`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/wifi/SerialWifiInterface.cpp) / [`.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/wifi/SerialWifiInterface.h) | **WiFi/TCP transport**: a TCP server using the same `'<'`/`'>'` + LE16 header; one client at a time; 4-frame send queue |
 | [`src/helpers/BaseSerialInterface.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/BaseSerialInterface.h) | `MAX_FRAME_SIZE` = 176 |
 | [`src/MeshCore.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/MeshCore.h) | `PUB_KEY_SIZE` = 32, `MAX_PATH_SIZE` = 64, `MAX_PACKET_PAYLOAD` = 184 |
 | [`src/Packet.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/Packet.h) | How `path_len` is packed: `getPathHashSize()`, `getPathHashCount()` |
@@ -32,7 +33,19 @@ Other implementations that are useful to compare against (not used as sources):
 [meshcore.js](https://github.com/meshcore-dev/meshcore.js) (JavaScript, used by the official web app) and
 [meshcore_py](https://github.com/meshcore-dev/meshcore_py) (Python).
 
-## 2. Serial framing
+## 2. Transports and framing
+
+Every byte-stream transport (USB serial and WiFi/TCP) uses the same framing, so `FrameEncoder` and
+`FrameDecoder` are shared by both through `StreamTransport`. BLE is different: each GATT write or notification carries
+exactly one frame, with no header.
+
+| Firmware build | Transport | Implemented in | Address |
+|---|---|---|---|
+| Companion **WiFi** | TCP client to the radio's server, default port **5000** | `TcpTransport` | `192.168.1.212`, `192.168.1.212:5000`, `tcp://host:port` |
+| Companion **USB** | Serial 115200 8N1 | `SerialTransport` | `COM11`, `/dev/ttyACM0` |
+| Companion **BLE** | Not supported (yet) | — | — |
+
+`MeshCoreEndpoint.Parse` turns any address above into the right transport.
 
 | Direction | Bytes | Implemented in |
 |---|---|---|
@@ -46,6 +59,28 @@ Other implementations that are useful to compare against (not used as sources):
 - Commands have **no request ID**. Send one command, wait for its reply, then send the next.
   Pushes can arrive in between.
 - Multi-byte integers are little-endian. Strings are UTF-8, and fixed-width fields are padded with NUL.
+- Assert **DTR** when opening the port. nRF52 boards (T-Echo, RAK) only send over USB CDC while DTR is set.
+  `SerialTransport` asserts both DTR and RTS, like pyserial does. With both asserted, the ESP32 auto-reset circuit stays idle.
+
+### WiFi (TCP) specifics — from `SerialWifiInterface.cpp`
+
+- **One client at a time.** When a new TCP client connects, the radio closes the previous one without warning.
+  The old client sees the socket close (EOF), which `StreamTransport` reports as an `EndOfStreamException`.
+  So this app must be the **only** thing connected to the radio. A phone app, or a second copy of this app, will keep kicking it off.
+- The radio queues at most **4 outgoing frames** and drops frames beyond that. It sends one per loop pass and
+  reads new commands only when that queue is empty. Waiting for each reply before sending the next command keeps us well within this.
+- The radio drops frames whose header doesn't start with `'<'`, and skips frames larger than `MAX_FRAME_SIZE`.
+- The radio sends nothing to detect a dead connection, so `TcpTransport` enables **TCP keep-alive** (15 s idle, then 3 probes 5 s apart).
+  A radio that loses power is then noticed in about 30 s.
+- Tested against a **Heltec V4.3 OLED** with companion WiFi firmware v1.18.0.
+
+### USB vs BLE companion firmware
+
+Companion firmware is built either for **USB** (`companion_radio_usb`) or for **BLE** (`companion_radio_ble`)
+on most boards. The BLE build still shows up as a USB serial port, but it never reads the protocol from it.
+Writes stall until they time out, and nothing comes back. To use this app over USB, flash the
+*Companion (USB)* build, for example with the [MeshCore web flasher](https://flasher.meshcore.co.uk).
+The USB build doesn't advertise over BLE, so the phone app can't connect at the same time.
 
 ## 3. Frame layouts used by the library
 
