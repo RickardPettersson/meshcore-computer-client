@@ -100,4 +100,4 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 | `90282e5` | Phase 3: SQLite storage, radio connection service and console chat |
 | `1b9915d` | Phase 4: REST API, authentication and user management |
 | `1219178` | Phase 5: responsive website (MVC BFF) |
-| `phase-6-live-chat` | Phase 6: live chat, unread markers, PWA, simulator |
+| `a0af635` | Phase 6: live chat, unread markers, PWA, simulator |
