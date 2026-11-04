@@ -4,6 +4,8 @@ A .NET 10 app that connects to a [MeshCore](https://github.com/meshcore-dev/Mesh
 WiFi (TCP) or USB serial. It stores messages, contacts and channels in SQLite, and will host a REST API and a
 responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
+**Status:** phases 1–3 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
+
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ## Requirements
