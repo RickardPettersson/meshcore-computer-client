@@ -12,6 +12,9 @@
   <ItemGroup>
     <ProjectReference Include="..\MeshCore.Client\MeshCore.Client.csproj" />
     <ProjectReference Include="..\MeshCore.Data\MeshCore.Data.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <InternalsVisibleTo Include="MeshCore.Host.Tests" />
   </ItemGroup>

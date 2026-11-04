@@ -100,22 +100,41 @@ package, and don't depend on ASP.NET.
 
 ## 4. REST API (`/api/v1`, ASP.NET Core controllers + OpenAPI)
 
+**Built in Phase 4** (🔒 = Admin only):
+
 | Resource | Endpoints |
 |---|---|
-| `device` | `GET /device`, `GET /device/battery`, `GET /device/status` (connection), `POST /device/time`, `POST /device/reboot`, `POST /device/advert` |
-| `device/radio` | `GET/PUT` radio params, tx power, tuning |
-| `contacts` | `GET /contacts`, `GET /contacts/{key}`, `PUT`, `DELETE`, `POST /contacts/{key}/reset-path`, `/share`, `/export`, `POST /contacts/import` |
-| `channels` | `GET /channels`, `GET/PUT/DELETE /channels/{idx}` |
-| `messages` | `GET /messages?contact=&channel=&before=&take=` (paged from DB), `POST /messages/direct`, `POST /messages/channel` |
-| `repeaters` | `POST /{key}/login`, `/logout`, `/status`, `/telemetry`, `/trace`, `/cli` |
-| `auth` | `GET /auth/setup-required`, `POST /auth/setup` (first run only), `POST /auth/token`, `POST /auth/change-password` |
-| `users` (Admin only) | `GET /users`, `POST /users`, `PUT /users/{id}` (role, enabled), `POST /users/{id}/reset-password`, `DELETE /users/{id}` |
-| real-time | SignalR hub `/hubs/mesh`: new message, ACK, advert, connection state |
+| `auth` | `GET /auth/setup-required`, `POST /auth/setup` (first run only), `POST /auth/token`, `GET /auth/me`, `POST /auth/change-password` |
+| `users` 🔒 | `GET /users`, `GET /users/{id}`, `POST /users`, `PUT /users/{id}` (role, enabled), `POST /users/{id}/reset-password`, `DELETE /users/{id}` |
+| `device` | `GET /device` (connection + node + hardware), `GET /device/battery`, `GET /device/time`, `POST /device/time` 🔒, `POST /device/advert`, `POST /device/reboot` 🔒 |
+| `contacts` | `GET /contacts[?includeRemoved]`, `GET /contacts/{key}`, `POST /contacts/refresh`, `POST /contacts/{key}/reset-path` 🔒, `DELETE /contacts/{key}` 🔒 |
+| `channels` | `GET /channels`, `GET /channels/{idx}`, `GET /channels/{idx}/secret` 🔒, `PUT /channels/{idx}` 🔒 (random key if none given), `DELETE /channels/{idx}` 🔒 |
+| `messages` | `GET /messages?contact=&channel=&before=&take=` (paged from the DB), `POST /messages/direct`, `POST /messages/channel`, `POST /messages/sync` |
 
-- Every endpoint except setup and token needs a **JWT bearer** token. The token carries claims for user id, username and role.
-  It is checked with policies: `RequireUser` for reading and sending, `RequireAdmin` for user management and device or radio settings.
-- **OpenAPI** uses .NET 10's built-in `Microsoft.AspNetCore.OpenApi`, with the Scalar UI enabled in Development.
-- Errors are returned as **ProblemDetails**. Device `ERR` codes map to HTTP status: not found → 404, table full → 409, unsupported → 501, device offline → 503.
+**Later:**
+
+| Resource | Endpoints | Phase |
+|---|---|---|
+| real-time | SignalR hub `/hubs/mesh`: new message, ACK, advert, connection state | 6 |
+| `device/radio` | `GET/PUT` radio params, TX power, tuning; rename node; set location | 7 |
+| `contacts` | add/update, share, export/import | 7 |
+| `repeaters` | `POST /{key}/login`, `/logout`, `/status`, `/telemetry`, `/trace`, `/cli` | 7 |
+
+- **Secure by default.** The fallback policy requires a signed-in user who isn't waiting on a forced password change.
+  Only `setup-required`, `setup`, `token`, `/healthz` and the API docs allow anonymous access.
+  - **`SignedIn` policy:** for `me` and `change-password` only, so users with a pending password change can still reach them.
+  - **`Admin` policy:** Admin role required.
+- **JWT** access tokens are HMAC-SHA512 signed and valid for 8 hours (`Auth:TokenLifetime`).
+  - Claims: `sub`, `name`, `role`, `sstamp` (security stamp) and `mcp` (must change password).
+  - Every request checks the security stamp against the user file. A password reset, role change or disable revokes that user's tokens immediately.
+- **Rate limit** on `setup`, `token` and `change-password`: 10 requests per minute per IP address. Accounts lock for 15 minutes after 5 wrong passwords.
+  An unknown username takes the same time to answer as a wrong password, so usernames can't be guessed that way.
+- **OpenAPI** uses .NET 10's built-in `Microsoft.AspNetCore.OpenApi`, with a Bearer security scheme.
+  The **Scalar** explorer is at `/scalar` in Development, or when `Api:EnableDocs=true`.
+- Errors are returned as **ProblemDetails** (RFC 9457) by `ApiExceptionHandler`.
+  - Radio offline → 503, radio timeout → 504.
+  - Radio `ERR` codes: not found → 404, table full / bad state / refused value → 409, unsupported or disabled → 501.
+  - Validation → 400. Account rules: duplicate or last Admin → 409, deleting yourself → 403.
 
 ## 5. Website — ASP.NET MVC as a BFF (Backend-for-Frontend)
 
@@ -160,8 +179,11 @@ The hash can't be turned back into the password.
 4. After setup, `/Account/Login` handles login. There is lockout after 5 failed attempts, logout, and a change-password page under Settings.
    Every login and user change is logged.
 
-**Storage** goes in `appsettings.auth.json`. The app writes this file itself at runtime and layers it on top of `appsettings.json`.
-Writes are atomic (write to a temp file, then rename) and guarded by a lock.
+**Storage** goes in `appsettings.auth.json` inside the app's data folder (`MeshCore:DataDirectory`, default `data/`).
+That folder is always writable, even when the app itself is installed somewhere read-only.
+`JsonUserStore` reads and writes the file directly instead of going through `IConfiguration`, because users are
+data, not settings. Writes are atomic (write to a temp file, then rename), and all updates go through one lock,
+so rules such as "only while no users exist" and "not the last Admin" can't race each other.
 
 ```json
 {
@@ -228,7 +250,7 @@ Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:C
 | 1 | Solution scaffold, protocol library (framing + codes + core codecs), unit tests | Golden-frame tests pass |
 | 2 | TCP + serial transports, endpoint parsing, USB auto-detect, `MeshCoreClient`, handshake, `meshcore-cli` diagnostic tool | ✅ `meshcore-cli info` works against the Heltec V4 over WiFi |
 | 3 | SQLite persistence (EF Core migrations), `RadioConnectionService` + `MeshRadio`, send direct/channel messages with ACK tracking, console chat | ✅ Connected to the Heltec; takeover backoff verified |
-| 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | Scalar UI exercises every endpoint; a User gets 403 on admin endpoints |
+| 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | ✅ Verified against the Heltec; a User gets 403 on admin endpoints (tested) |
 | 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Contacts, Channels, Device, Settings → Users | Works on a phone and a desktop; admin can add a user who then logs in |
 | 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest | Real-time chat in phone and desktop browsers |
 | 7 | Advanced: repeater login/status/telemetry/trace/CLI, radio settings, key import/export | Full feature coverage |

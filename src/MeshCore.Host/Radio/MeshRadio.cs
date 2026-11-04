@@ -174,6 +174,59 @@ public sealed partial class MeshRadio(MeshStore store, ILogger<MeshRadio> logger
         ChannelsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    // ---- Device, contact and channel operations -----------------------------
+
+    public Task<BatteryAndStorage> GetBatteryAsync(CancellationToken cancellationToken = default) =>
+        RequireClient().GetBatteryAndStorageAsync(cancellationToken);
+
+    public Task<DateTimeOffset> GetDeviceTimeAsync(CancellationToken cancellationToken = default) =>
+        RequireClient().GetDeviceTimeAsync(cancellationToken);
+
+    /// <summary>Sets the radio clock. Fails with <see cref="ErrorCode.IllegalArgument"/> if the radio is ahead.</summary>
+    public Task SetDeviceTimeAsync(DateTimeOffset time, CancellationToken cancellationToken = default) =>
+        RequireClient().SetDeviceTimeAsync(time, cancellationToken);
+
+    public Task SendAdvertAsync(bool flood, CancellationToken cancellationToken = default) =>
+        RequireClient().SendAdvertAsync(flood, cancellationToken);
+
+    /// <summary>Reboots the radio. The link drops and the connection service reconnects.</summary>
+    public Task RebootAsync(CancellationToken cancellationToken = default) =>
+        RequireClient().RebootAsync(cancellationToken);
+
+    public async Task RemoveContactAsync(PublicKey key, CancellationToken cancellationToken = default)
+    {
+        await RequireClient().RemoveContactAsync(key, cancellationToken);
+        await RefreshContactsAsync(cancellationToken);
+    }
+
+    public async Task ResetPathAsync(PublicKey key, CancellationToken cancellationToken = default)
+    {
+        await RequireClient().ResetPathAsync(key, cancellationToken);
+        await RefreshContactsAsync(cancellationToken);
+    }
+
+    /// <summary>Reads a channel straight from the radio, including its secret (never stored locally).</summary>
+    public Task<ChannelInfo> GetChannelFromRadioAsync(byte index, CancellationToken cancellationToken = default) =>
+        RequireClient().GetChannelAsync(CheckChannelIndex(index), cancellationToken);
+
+    public async Task SetChannelAsync(byte index, string name, ReadOnlyMemory<byte> secret, CancellationToken cancellationToken = default)
+    {
+        await RequireClient().SetChannelAsync(CheckChannelIndex(index), name, secret, cancellationToken);
+        await RefreshChannelsAsync(cancellationToken);
+    }
+
+    /// <summary>Clears a channel slot (empty name, all-zero key), as the official apps do.</summary>
+    public Task DeleteChannelAsync(byte index, CancellationToken cancellationToken = default) =>
+        SetChannelAsync(index, "", new byte[ProtocolLimits.ChannelSecretSize], cancellationToken);
+
+    private byte CheckChannelIndex(byte index)
+    {
+        var max = Status.Device?.MaxChannels;
+        return max is { } m && index >= m
+            ? throw new ArgumentOutOfRangeException(nameof(index), index, $"This radio has channels 0–{m - 1}.")
+            : index;
+    }
+
     /// <summary>Marks direct messages still waiting for an ACK past their deadline.</summary>
     public async Task ExpireAcksAsync(CancellationToken cancellationToken = default)
     {
