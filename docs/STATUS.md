@@ -108,4 +108,4 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 | `1219178` | Phase 5: responsive website (MVC BFF) |
 | `a0af635` | Phase 6: live chat, unread markers, PWA, simulator |
 | `9e90531` | Phase 7: node settings, contacts, repeaters, identity |
-| `phase-8-polish` | Phase 8: HTTPS, logging, services, single-file builds, setup guide |
+| `5f76a00` | Phase 8: HTTPS, logging, services, single-file builds, setup guide |
