@@ -77,6 +77,70 @@ public sealed class MeshApiClient(HttpClient http)
 
     public Task RebootAsync(CancellationToken ct = default) => SendAsync(HttpMethod.Post, "device/reboot", null, ct);
 
+    // ---- Node settings (Admin) ------------------------------------------------------
+
+    public Task<DeviceResponse> SetNameAsync(string name, CancellationToken ct = default) =>
+        SendAsync<DeviceResponse>(HttpMethod.Put, "device/name", new SetNameRequest(name), ct);
+
+    public Task<DeviceResponse> SetLocationAsync(double latitude, double longitude, CancellationToken ct = default) =>
+        SendAsync<DeviceResponse>(HttpMethod.Put, "device/location", new SetLocationRequest(latitude, longitude), ct);
+
+    public Task<DeviceResponse> SetRadioAsync(SetRadioRequest request, CancellationToken ct = default) =>
+        SendAsync<DeviceResponse>(HttpMethod.Put, "device/radio", request, ct);
+
+    public Task<DeviceResponse> SetTxPowerAsync(int dbm, CancellationToken ct = default) =>
+        SendAsync<DeviceResponse>(HttpMethod.Put, "device/tx-power", new SetTxPowerRequest(dbm), ct);
+
+    public Task<TuningResponse> TuningAsync(CancellationToken ct = default) => GetAsync<TuningResponse>("device/tuning", ct);
+
+    public Task<TuningResponse> SetTuningAsync(double rxDelayBase, double airtimeFactor, CancellationToken ct = default) =>
+        SendAsync<TuningResponse>(HttpMethod.Put, "device/tuning", new SetTuningRequest(rxDelayBase, airtimeFactor), ct);
+
+    public Task<DeviceResponse> SetPreferencesAsync(SetPreferencesRequest request, CancellationToken ct = default) =>
+        SendAsync<DeviceResponse>(HttpMethod.Put, "device/preferences", request, ct);
+
+    public Task<ContactCardResponse> ContactCardAsync(CancellationToken ct = default) => GetAsync<ContactCardResponse>("device/contact-card", ct);
+
+    public Task<PrivateKeyResponse> PrivateKeyAsync(CancellationToken ct = default) => GetAsync<PrivateKeyResponse>("device/private-key", ct);
+
+    public Task<DeviceResponse> ImportPrivateKeyAsync(string hex, CancellationToken ct = default) =>
+        SendAsync<DeviceResponse>(HttpMethod.Put, "device/private-key", new ImportPrivateKeyRequest(hex), ct);
+
+    // ---- Contact actions and remote nodes ---------------------------------------------
+
+    public Task<DiscoveredNodeResponse[]> DiscoveredAsync(CancellationToken ct = default) => GetAsync<DiscoveredNodeResponse[]>("contacts/discovered", ct);
+
+    public Task AddDiscoveredAsync(string key, CancellationToken ct = default) => SendAsync(HttpMethod.Post, $"contacts/discovered/{Uri.EscapeDataString(key)}", null, ct);
+
+    public Task ImportContactAsync(string advertHex, CancellationToken ct = default) => SendAsync(HttpMethod.Post, "contacts/import", new ImportContactRequest(advertHex), ct);
+
+    public Task<ContactResponse> SetFavouriteAsync(string key, bool favourite, CancellationToken ct = default) =>
+        SendAsync<ContactResponse>(HttpMethod.Put, $"contacts/{Uri.EscapeDataString(key)}/favourite", new SetFavouriteRequest(favourite), ct);
+
+    public Task<ContactResponse> RenameContactAsync(string key, string name, CancellationToken ct = default) =>
+        SendAsync<ContactResponse>(HttpMethod.Put, $"contacts/{Uri.EscapeDataString(key)}/name", new RenameContactRequest(name), ct);
+
+    public Task<ContactResponse> ShareContactAsync(string key, CancellationToken ct = default) =>
+        PostAsync<ContactResponse>($"contacts/{Uri.EscapeDataString(key)}/share", null, ct);
+
+    public Task<ContactCardResponse> ExportContactAsync(string key, CancellationToken ct = default) =>
+        GetAsync<ContactCardResponse>($"contacts/{Uri.EscapeDataString(key)}/export", ct);
+
+    public Task<LoginResponse> LoginAsync(string key, string? password, CancellationToken ct = default) =>
+        PostAsync<LoginResponse>($"contacts/{Uri.EscapeDataString(key)}/login", new LoginRequest(password), ct);
+
+    public Task LogoutAsync(string key, CancellationToken ct = default) => SendAsync(HttpMethod.Post, $"contacts/{Uri.EscapeDataString(key)}/logout", null, ct);
+
+    public Task<StatusResponse> StatusAsync(string key, CancellationToken ct = default) => PostAsync<StatusResponse>($"contacts/{Uri.EscapeDataString(key)}/status", null, ct);
+
+    public Task<TelemetryResponse> TelemetryAsync(string key, CancellationToken ct = default) =>
+        PostAsync<TelemetryResponse>($"contacts/{Uri.EscapeDataString(key)}/telemetry", null, ct);
+
+    public Task<TraceResponse> TraceAsync(string key, CancellationToken ct = default) => PostAsync<TraceResponse>($"contacts/{Uri.EscapeDataString(key)}/trace", null, ct);
+
+    public Task<MessageResponse> CliAsync(string key, string command, CancellationToken ct = default) =>
+        PostAsync<MessageResponse>($"contacts/{Uri.EscapeDataString(key)}/cli", new CliCommandRequest(command), ct);
+
     // ---- Contacts & channels ----------------------------------------------------
 
     public Task<ContactResponse[]> ContactsAsync(bool includeRemoved = false, CancellationToken ct = default) =>

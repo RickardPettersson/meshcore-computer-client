@@ -28,6 +28,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     internal FakeRadio? Radio { get; init; } = DefaultRadio();
 
+    /// <summary>Use the built-in radio simulator instead of <see cref="Radio"/> (no chatter during tests).</summary>
+    internal bool UseSimulator { get; init; }
+
     internal static FakeRadio DefaultRadio() => new FakeRadio().WithHandshake("Base", maxChannels: 4)
         .On(0x04, [0x02, 1, 0, 0, 0], FakeRadio.Contact(10, "Alice"), [0x04, 0, 0, 0, 0])
         .On(0x1F, cmd => [cmd[1] == 0 ? FakeRadio.ChannelInfo(0, "Public") : FakeRadio.ChannelInfo(cmd[1], "")])
@@ -52,7 +55,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton(sp =>
             {
                 var service = ActivatorUtilities.CreateInstance<RadioConnectionService>(sp);
-                service.TransportFactory = _ => Radio ?? (ITransport)new UnreachableTransport();
+                service.TransportFactory = _ => UseSimulator
+                    ? new SimulatedRadio(TimeSpan.FromHours(1), TimeProvider.System)
+                    : Radio ?? (ITransport)new UnreachableTransport();
                 return service;
             });
             services.PostConfigure<RadioOptions>(o => o.ReconnectDelays = [TimeSpan.FromMilliseconds(200)]);

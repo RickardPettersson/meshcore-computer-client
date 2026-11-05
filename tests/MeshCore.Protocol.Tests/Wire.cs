@@ -22,6 +22,13 @@ internal static class Wire
         return b;
     }
 
+    public static byte[] I16(short v)
+    {
+        var b = new byte[2];
+        BinaryPrimitives.WriteInt16LittleEndian(b, v);
+        return b;
+    }
+
     public static byte[] U32(uint v)
     {
         var b = new byte[4];

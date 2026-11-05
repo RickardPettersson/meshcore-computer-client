@@ -68,7 +68,7 @@ public sealed partial class MeshRadio(MeshStore store, ILogger<MeshRadio> logger
         var prefix = PublicKeyPrefix.Parse(key[..prefixHexLength]);
         var client = RequireClient();
 
-        var row = await store.SaveOutgoingAsync(MessageKind.Direct, prefix.Hex, null, client.SelfInfo?.Name ?? "", text, userId, cancellationToken);
+        var row = await store.SaveOutgoingAsync(MessageKind.Direct, prefix.Hex, null, client.SelfInfo?.Name ?? "", text, userId, cancellationToken: cancellationToken);
         Raise(row, isNew: true);
         try
         {
@@ -92,7 +92,7 @@ public sealed partial class MeshRadio(MeshStore store, ILogger<MeshRadio> logger
         var selfName = client.SelfInfo?.Name ?? "";
         ValidateText(text, ProtocolLimits.MaxChannelTextBytes(selfName));
 
-        var row = await store.SaveOutgoingAsync(MessageKind.Channel, null, channelIndex, selfName, text, userId, cancellationToken);
+        var row = await store.SaveOutgoingAsync(MessageKind.Channel, null, channelIndex, selfName, text, userId, cancellationToken: cancellationToken);
         Raise(row, isNew: true);
         try
         {
@@ -296,8 +296,13 @@ public sealed partial class MeshRadio(MeshStore store, ILogger<MeshRadio> logger
                     await RefreshContactsAsync();
                     break;
                 case NewAdvertPush n:
-                    // Only sent when the radio is set to add contacts manually; adding them comes in Phase 7.
+                    // Only sent when the radio is set to add contacts manually: offer it in the "heard nodes" list.
                     LogNewNode(n.Contact.Name, n.Contact.Type);
+                    Discover(n.Contact, DateTimeOffset.UtcNow);
+                    break;
+                case ContactDeletedPush or ContactsFullPush:
+                    // The radio overwrote its oldest contact (or is full): resync so the list matches.
+                    await RefreshContactsAsync();
                     break;
             }
         }

@@ -1,0 +1,17 @@
+@{ ViewData["Title"] = "Import contact"; }
+<div class="app-narrow">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to contacts"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+        <h1 class="h3 mb-0">Import contact</h1>
+    </div>
+    <div class="card"><div class="card-body">
+        <p>Paste a contact card someone exported (from <em>Device → My contact card</em> or a contact's <em>Export card</em>).
+            The radio checks its signature before adding it.</p>
+        <form asp-action="Import" method="post">
+            <label for="advert" class="form-label">Contact card</label>
+            <textarea id="advert" name="advertHex" class="form-control app-mono mb-3" rows="5" required spellcheck="false" autocomplete="off"
+                      placeholder="Hex text, about 200–300 characters"></textarea>
+            <button class="btn btn-primary" type="submit">Import</button>
+        </form>
+    </div></div>
+</div>

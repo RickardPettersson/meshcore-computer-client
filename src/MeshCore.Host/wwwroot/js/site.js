@@ -90,4 +90,15 @@
     if ('serviceWorker' in navigator && window.isSecureContext) {
         navigator.serviceWorker.register('/sw.js').catch(function () { /* not essential */ });
     }
+
+    // ---- "Use this device's location" (node settings). Browsers allow it on HTTPS or localhost. ----
+    document.querySelectorAll('[data-geolocate]').forEach(function (button) {
+        if (!('geolocation' in navigator) || !window.isSecureContext) { button.disabled = true; button.title = 'Needs HTTPS'; return; }
+        button.addEventListener('click', function () {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                document.getElementById(button.dataset.lat).value = pos.coords.latitude.toFixed(6);
+                document.getElementById(button.dataset.lon).value = pos.coords.longitude.toFixed(6);
+            }, function (err) { alert('Could not get the location: ' + err.message); }, { enableHighAccuracy: true, timeout: 10000 });
+        });
+    });
 })();

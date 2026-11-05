@@ -314,6 +314,7 @@ public sealed partial class MeshCoreClient : IAsyncDisposable
 
                 if (frame.IsPush)
                 {
+                    OfferToWaiters(frame);
                     _pushes.Writer.TryWrite(frame);
                 }
                 else if (Volatile.Read(ref _pending) is not { } pending || !pending.Offer(frame))
@@ -343,8 +344,10 @@ public sealed partial class MeshCoreClient : IAsyncDisposable
         }
 
         _pushes.Writer.TryComplete();
-        Volatile.Read(ref _pending)?.Fail(new MeshCoreDisconnectedException(
-            $"Lost connection to the radio on {_transport.Description}.", error ?? new EndOfStreamException()));
+        var lost = new MeshCoreDisconnectedException(
+            $"Lost connection to the radio on {_transport.Description}.", error ?? new EndOfStreamException());
+        Volatile.Read(ref _pending)?.Fail(lost);
+        FailWaiters(lost);
         if (error is null)
         {
             LogClosed(_transport.Description);

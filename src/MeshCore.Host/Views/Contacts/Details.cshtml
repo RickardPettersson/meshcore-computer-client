@@ -1,0 +1,177 @@
+@model ContactDetailsViewModel
+@{
+    var c = Model.Contact;
+    ViewData["Title"] = c.Name;
+    var isAdmin = User.IsInRole(nameof(UserRole.Admin));
+    var icon = c.Type switch
+    {
+        MeshCore.Protocol.AdvertType.Repeater => "bi-router",
+        MeshCore.Protocol.AdvertType.Room => "bi-door-open",
+        MeshCore.Protocol.AdvertType.Sensor => "bi-thermometer-half",
+        _ => "bi-person",
+    };
+}
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to contacts"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+    <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true"><i class="bi @icon"></i></span>
+    <div class="min-w-0 me-auto">
+        <h1 class="h4 mb-0 text-truncate">@c.Name @if (c.Favourite) { <i class="bi bi-star-fill text-warning fs-6" title="Favourite"></i> }</h1>
+        <div class="small text-body-secondary">@c.Type · @(c.Hops is { } h ? $"{h} hop(s)" : "route unknown (floods)")</div>
+    </div>
+    <a class="btn btn-primary" asp-controller="Messages" asp-action="Direct" asp-route-id="@c.PublicKey"><i class="bi bi-chat" aria-hidden="true"></i><span class="d-none d-sm-inline"> @(Model.IsServer ? "Messages & CLI" : "Message")</span></a>
+</div>
+
+@if (Model.Error is { } err)
+{
+    <div class="alert alert-warning d-flex gap-2" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>@err</div></div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100"><div class="card-header"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>Details</div><div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-4">Public key</dt>
+                <dd class="col-8"><span class="app-mono">@c.PublicKey[..16]…</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-1" data-copy="@c.PublicKey" aria-label="Copy public key"><i class="bi bi-clipboard" aria-hidden="true"></i></button></dd>
+                <dt class="col-4">Last advert</dt><dd class="col-8"><partial name="_Time" model="@((DateTimeOffset?)c.LastAdvert)" /></dd>
+                <dt class="col-4">Last heard</dt><dd class="col-8"><partial name="_Time" model="c.LastHeard" /></dd>
+                <dt class="col-4">Location</dt><dd class="col-8">@(c.Latitude == 0 && c.Longitude == 0 ? "not shared" : $"{c.Latitude:0.00000}, {c.Longitude:0.00000}")</dd>
+            </dl>
+        </div></div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100"><div class="card-header"><i class="bi bi-tools me-2" aria-hidden="true"></i>Actions</div><div class="card-body d-flex flex-wrap gap-2 align-content-start">
+            <form asp-action="Trace" method="post"><input type="hidden" name="key" value="@c.PublicKey">
+                <button class="btn btn-outline-primary" type="submit" title="Follow the route out and back, with signal at each hop"><i class="bi bi-diagram-3" aria-hidden="true"></i> Trace route</button></form>
+            <form asp-action="Telemetry" method="post"><input type="hidden" name="key" value="@c.PublicKey">
+                <button class="btn btn-outline-primary" type="submit"><i class="bi bi-thermometer-half" aria-hidden="true"></i> Telemetry</button></form>
+            <form asp-action="Share" method="post" data-confirm="Re-broadcast @c.Name's advert to nearby nodes?" data-confirm-button="Share">
+                <input type="hidden" name="key" value="@c.PublicKey">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-broadcast" aria-hidden="true"></i> Share nearby</button></form>
+            <form asp-action="Export" method="post"><input type="hidden" name="key" value="@c.PublicKey">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-box-arrow-up" aria-hidden="true"></i> Export card</button></form>
+            @if (isAdmin)
+            {
+                <form asp-action="Favourite" method="post"><input type="hidden" name="key" value="@c.PublicKey"><input type="hidden" name="favourite" value="@((!c.Favourite).ToString().ToLowerInvariant())">
+                    <button class="btn btn-outline-warning" type="submit"><i class="bi @(c.Favourite ? "bi-star-fill" : "bi-star")" aria-hidden="true"></i> @(c.Favourite ? "Unfavourite" : "Favourite")</button></form>
+                <details class="w-100">
+                    <summary class="small">Rename on this radio…</summary>
+                    <form asp-action="Rename" method="post" class="d-flex gap-2 mt-2"><input type="hidden" name="key" value="@c.PublicKey">
+                        <label class="visually-hidden" for="rename">New name</label>
+                        <input id="rename" name="name" class="form-control" value="@c.Name" maxlength="31" required>
+                        <button class="btn btn-outline-primary" type="submit">Rename</button></form>
+                </details>
+            }
+        </div></div>
+    </div>
+
+    @if (Model.IsServer)
+    {
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>@(c.Type == MeshCore.Protocol.AdvertType.Room ? "Room server" : "Repeater")</div><div class="card-body">
+                @if (Model.Login is { } login)
+                {
+                    <div class="alert @(login.Success ? "alert-success" : "alert-danger") py-2">
+                        @if (login.Success)
+                        {
+                            <text><i class="bi bi-check-circle" aria-hidden="true"></i> Logged in@(login.IsAdmin ? " with admin rights. You can send CLI commands from the chat." : " as a guest.")</text>
+                        }
+                        else
+                        {
+                            <text><i class="bi bi-x-circle" aria-hidden="true"></i> Login refused: wrong password?</text>
+                        }
+                    </div>
+                }
+                <form asp-action="Login" method="post" class="d-flex gap-2 mb-2"><input type="hidden" name="key" value="@c.PublicKey">
+                    <label class="visually-hidden" for="pw">Password</label>
+                    <input id="pw" name="password" type="password" class="form-control" maxlength="15" placeholder="Password (blank for guest)" autocomplete="off">
+                    <button class="btn btn-primary" type="submit">Log in</button></form>
+                <div class="d-flex flex-wrap gap-2">
+                    <form asp-action="Status" method="post"><input type="hidden" name="key" value="@c.PublicKey">
+                        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-activity" aria-hidden="true"></i> Status</button></form>
+                    <form asp-action="Logout" method="post"><input type="hidden" name="key" value="@c.PublicKey">
+                        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-box-arrow-left" aria-hidden="true"></i> Log out</button></form>
+                </div>
+                <div class="form-text">The password goes to the server only; it isn't stored. Remote requests can take up to a minute over several hops.</div>
+            </div></div>
+        </div>
+    }
+
+    @if (Model.Status is { } status)
+    {
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-activity me-2" aria-hidden="true"></i>Status</div><div class="card-body">
+                @if (status.Stats is { } s)
+                {
+                    <dl class="row mb-0 small">
+                        <dt class="col-6">Battery</dt><dd class="col-6">@s.BatteryVolts.ToString("0.00") V</dd>
+                        <dt class="col-6">Uptime</dt><dd class="col-6">@TimeSpan.FromHours(s.UptimeHours).ToString(@"d\d\ hh\h\ mm\m")</dd>
+                        <dt class="col-6">Noise floor</dt><dd class="col-6">@s.NoiseFloorDbm dBm</dd>
+                        <dt class="col-6">Last RSSI / SNR</dt><dd class="col-6">@s.LastRssiDbm dBm / @s.LastSnrDb.ToString("0.0") dB</dd>
+                        <dt class="col-6">Packets in / out</dt><dd class="col-6">@s.PacketsReceived / @s.PacketsSent</dd>
+                        <dt class="col-6">Flood in / out</dt><dd class="col-6">@s.ReceivedFlood / @s.SentFlood</dd>
+                        <dt class="col-6">Direct in / out</dt><dd class="col-6">@s.ReceivedDirect / @s.SentDirect</dd>
+                        <dt class="col-6">Duplicates (direct / flood)</dt><dd class="col-6">@s.DirectDuplicates / @s.FloodDuplicates</dd>
+                        <dt class="col-6">TX airtime</dt><dd class="col-6">@s.AirTimeMinutes.ToString("0.0") min</dd>
+                        <dt class="col-6">TX queue / errors</dt><dd class="col-6">@s.TxQueueLength / @s.ErrorEvents</dd>
+                    </dl>
+                }
+                else
+                {
+                    <p class="small mb-1">This node type sends a status format this app doesn't decode yet. Raw data:</p>
+                    <code class="app-mono">@status.RawHex</code>
+                }
+            </div></div>
+        </div>
+    }
+
+    @if (Model.Telemetry is { } telemetry)
+    {
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-thermometer-half me-2" aria-hidden="true"></i>Telemetry</div><div class="card-body">
+                @if (telemetry.Readings.Count == 0)
+                {
+                    <p class="text-body-secondary mb-0">No readings. The node may not share telemetry with you; check its telemetry permissions.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var r in telemetry.Readings)
+                        {
+                            <li><span class="text-body-secondary small">ch @r.Channel</span> @r.Display</li>
+                        }
+                    </ul>
+                }
+            </div></div>
+        </div>
+    }
+
+    @if (Model.Trace is { } trace)
+    {
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>Trace · @trace.RoundTripMs ms round trip</div><div class="card-body">
+                <ol class="list-group list-group-numbered list-group-flush small">
+                    <li class="list-group-item d-flex"><span class="me-auto">This node</span></li>
+                    @foreach (var hop in trace.Hops)
+                    {
+                        <li class="list-group-item d-flex gap-2"><span class="app-mono me-auto">@hop.Hash</span>
+                            <span class="@(hop.SnrDb < 0 ? "text-warning" : "text-success")">@(hop.SnrDb is { } snr ? $"{snr:0.0} dB" : "—")</span></li>
+                    }
+                    <li class="list-group-item d-flex"><span class="me-auto">Back here</span><span>@trace.FinalSnrDb.ToString("0.0") dB</span></li>
+                </ol>
+                <div class="form-text">SNR is how each hop heard the trace. Above 0 dB is comfortable; below about −10 dB is near the edge.</div>
+            </div></div>
+        </div>
+    }
+
+    @if (Model.CardHex is { } card)
+    {
+        <div class="col-12">
+            <div class="card"><div class="card-header"><i class="bi bi-box-arrow-up me-2" aria-hidden="true"></i>@c.Name's contact card</div><div class="card-body">
+                <code class="app-mono user-select-all d-block p-2 bg-body-secondary rounded mb-2">@card</code>
+                <button type="button" class="btn btn-sm btn-primary" data-copy="@card"><i class="bi bi-clipboard" aria-hidden="true"></i> Copy</button>
+            </div></div>
+        </div>
+    }
+</div>

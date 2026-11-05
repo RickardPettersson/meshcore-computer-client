@@ -113,13 +113,13 @@ package, and don't depend on ASP.NET.
 | `conversations` | `GET /conversations` (chat list with the signed-in user's unread counts), `POST /conversations/read` (per-user read marker) |
 | real-time | SignalR hub: `/api/v1/hub` on the API port (bearer token, or `?access_token=` for WebSockets) and `/hubs/mesh` on the website port (cookie). Events: `message` (new or changed status), `radio`, `contacts`, `channels` |
 
-**Later:**
+**Built in Phase 7** (🔒 = Admin only):
 
-| Resource | Endpoints | Phase |
-|---|---|---|
-| `device/radio` | `GET/PUT` radio params, TX power, tuning; rename node; set location | 7 |
-| `contacts` | add/update, share, export/import | 7 |
-| `repeaters` | `POST /{key}/login`, `/logout`, `/status`, `/telemetry`, `/trace`, `/cli` | 7 |
+| Resource | Endpoints |
+|---|---|
+| `device` settings | `PUT /device/name` 🔒, `PUT /device/location` 🔒, `PUT /device/radio` 🔒 (freq, BW, SF, CR), `PUT /device/tx-power` 🔒, `GET`/`PUT /device/tuning` (PUT 🔒), `PUT /device/preferences` 🔒, `GET /device/contact-card`, `GET`/`PUT /device/private-key` 🔒 (501 when the firmware has it disabled) |
+| `contacts` | `GET /contacts/discovered`, `POST /contacts/discovered/{key}` 🔒, `POST /contacts/import` 🔒, `PUT /contacts/{key}/favourite` 🔒, `PUT /contacts/{key}/name` 🔒, `POST /contacts/{key}/share`, `GET /contacts/{key}/export` |
+| repeaters / rooms | `POST /contacts/{key}/login`, `/logout`, `/status`, `/telemetry`, `/trace`, and `/cli` 🔒. Each waits for the remote node's answer (timeout → 504). |
 
 - **Secure by default.** The fallback policy requires a signed-in user who isn't waiting on a forced password change.
   Only `setup-required`, `setup`, `token`, `/healthz` and the API docs allow anonymous access.
@@ -278,7 +278,7 @@ Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:C
 | 4 | REST API + OpenAPI + JWT + roles/policies + first-run setup + user management endpoints | ✅ Verified against the Heltec; a User gets 403 on admin endpoints (tested) |
 | 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Chats, Contacts, Channels, Device, Settings → Users | ✅ Checked at phone and desktop sizes against the Heltec; Admin adds a user who signs in (tested) |
 | 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest + radio simulator | ✅ Live chat checked at phone and desktop sizes against the simulator (PWA install not yet verified on a phone) |
-| 7 | Advanced: repeater login/status/telemetry/trace/CLI, radio settings, key import/export | Full feature coverage |
+| 7 | Advanced: repeater login/status/telemetry/trace/CLI, radio settings, contact management, key import/export | ✅ All features checked against the simulator; read-only values checked on the Heltec |
 | 8 | Polish: reconnect UX, logging (Serilog → console/file), `dotnet publish` single-file exe, README | One exe to run |
 
 ## 9. Decisions

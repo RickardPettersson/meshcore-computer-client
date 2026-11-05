@@ -84,7 +84,24 @@ public sealed record DevicePageViewModel(DeviceResponse Device, BatteryResponse?
 
 public sealed record ChannelsPageViewModel(IReadOnlyList<ChannelResponse> Channels, int? MaxChannels, ChannelSecretResponse? Revealed);
 
+public sealed record NodeSettingsViewModel(DeviceResponse Device, TuningResponse? Tuning, string? RevealedPrivateKey);
+
+public sealed record ContactCardViewModel(string Name, string AdvertHex);
+
+/// <summary>A contact plus whatever remote request the user just ran on it.</summary>
+public sealed record ContactDetailsViewModel(
+    ContactResponse Contact,
+    string? CardHex = null,
+    LoginResponse? Login = null,
+    StatusResponse? Status = null,
+    TelemetryResponse? Telemetry = null,
+    TraceResponse? Trace = null,
+    string? Error = null)
+{
+    public bool IsServer => Contact.Type is MeshCore.Protocol.AdvertType.Repeater or MeshCore.Protocol.AdvertType.Room;
+}
+
 public sealed record ChatViewModel(
     string Key,
     string Title, string? Subtitle, string? ContactKey, byte? ChannelIndex, IReadOnlyList<MessageResponse> Messages,
-    IReadOnlyDictionary<string, string> UserNames, int MaxBytes, string? Draft);
+    IReadOnlyDictionary<string, string> UserNames, int MaxBytes, string? Draft, bool CliAvailable = false);

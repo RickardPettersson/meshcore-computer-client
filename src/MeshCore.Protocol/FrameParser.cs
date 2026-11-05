@@ -64,6 +64,15 @@ public static class FrameParser
         (byte)PushCode.SendConfirmed => new SendConfirmedPush(r.ReadUInt32(), TimeSpan.FromMilliseconds(r.ReadUInt32())),
         (byte)PushCode.MessagesWaiting => new MessagesWaitingPush(),
         (byte)PushCode.NewAdvert => new NewAdvertPush(ReadContact(ref r)),
+        (byte)PushCode.LoginSuccess or (byte)PushCode.LoginFail => ReadLoginResult(code, ref r),
+        (byte)PushCode.StatusResponse => ReadStatusResponse(ref r),
+        (byte)PushCode.TelemetryResponse => ReadTelemetryResponse(ref r),
+        (byte)PushCode.TraceData => ReadTraceData(ref r),
+        (byte)PushCode.ContactDeleted => new ContactDeletedPush(ReadKey(ref r)),
+        (byte)PushCode.ContactsFull => new ContactsFullPush(),
+        (byte)ResponseCode.TuningParams => new TuningParams(r.ReadUInt32() / 1000.0, r.ReadUInt32() / 1000.0),
+        (byte)ResponseCode.ExportContact => new ExportedContact(r.ReadBytes(r.Remaining).ToArray()),
+        (byte)ResponseCode.PrivateKey => new PrivateKey(r.ReadBytes(64).ToArray()),
         _ => null,
     };
 
@@ -102,6 +111,57 @@ public static class FrameParser
         bool? repeat = r.Remaining >= 1 ? r.ReadByte() != 0 : null;
         byte? pathHashMode = r.Remaining >= 1 ? r.ReadByte() : null;
         return new DeviceInfo(version, maxContacts, maxChannels, blePin, buildDate, model, firmware, repeat, pathHashMode);
+    }
+
+    private static LoginResultPush ReadLoginResult(byte code, ref FrameReader r)
+    {
+        var permissions = r.ReadByte();
+        var sender = new PublicKeyPrefix(r.ReadBytes(ProtocolLimits.PublicKeyPrefixSize));
+        // Newer servers add their clock, ACL permissions and firmware level; legacy "OK" logins don't.
+        DateTimeOffset? serverTime = r.Remaining >= 4 ? r.ReadUnixTime() : null;
+        byte? acl = r.Remaining >= 1 ? r.ReadByte() : null;
+        byte? level = r.Remaining >= 1 ? r.ReadByte() : null;
+        var success = code == (byte)PushCode.LoginSuccess;
+        return new LoginResultPush(code, success, sender, success && (permissions & 0x01) != 0, permissions, serverTime, acl, level);
+    }
+
+    private static StatusResponsePush ReadStatusResponse(ref FrameReader r)
+    {
+        r.Skip(1); // reserved
+        var sender = new PublicKeyPrefix(r.ReadBytes(ProtocolLimits.PublicKeyPrefixSize));
+        var raw = r.ReadBytes(r.Remaining).ToArray();
+        return new StatusResponsePush(sender, raw, RepeaterStats.TryParse(raw));
+    }
+
+    private static TelemetryResponsePush ReadTelemetryResponse(ref FrameReader r)
+    {
+        r.Skip(1); // reserved
+        var sender = new PublicKeyPrefix(r.ReadBytes(ProtocolLimits.PublicKeyPrefixSize));
+        var raw = r.ReadBytes(r.Remaining).ToArray();
+        return new TelemetryResponsePush(sender, CayenneLpp.Decode(raw), raw);
+    }
+
+    private static TraceDataPush ReadTraceData(ref FrameReader r)
+    {
+        r.Skip(1); // reserved
+        var pathLength = r.ReadByte();
+        var flags = r.ReadByte();
+        var tag = r.ReadUInt32();
+        var auth = r.ReadUInt32();
+        var hashSize = 1 << (flags & 0x03);
+        var hashes = r.ReadBytes(pathLength);
+        var hops = pathLength / hashSize;
+        var hopHashes = new List<string>(hops);
+        for (var i = 0; i < hops; i++)
+        {
+            hopHashes.Add(Convert.ToHexStringLower(hashes.Slice(i * hashSize, hashSize)));
+        }
+        var snrs = new List<double>(hops);
+        for (var i = 0; i < hops; i++)
+        {
+            snrs.Add(ReadSnr(ref r));
+        }
+        return new TraceDataPush(tag, auth, hashSize, hopHashes, snrs, ReadSnr(ref r));
     }
 
     private static BatteryAndStorage ReadBatteryAndStorage(ref FrameReader r)

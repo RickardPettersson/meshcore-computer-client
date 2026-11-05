@@ -32,7 +32,7 @@ public sealed class HomeController(MeshApiClient api) : WebController
     }
 }
 
-public sealed class DeviceController(MeshApiClient api) : WebController
+public sealed partial class DeviceController(MeshApiClient api) : WebController
 {
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -76,11 +76,12 @@ public sealed class DeviceController(MeshApiClient api) : WebController
     }
 }
 
-public sealed class ContactsController(MeshApiClient api) : WebController
+public sealed partial class ContactsController(MeshApiClient api) : WebController
 {
     public async Task<IActionResult> Index(bool removed, CancellationToken ct)
     {
         ViewData["ShowRemoved"] = removed;
+        ViewData["Discovered"] = await api.DiscoveredAsync(ct);
         return View(await api.ContactsAsync(removed, ct));
     }
 
@@ -203,7 +204,8 @@ public sealed class MessagesController(MeshApiClient api) : WebController
         var key = Data.ConversationKey.Direct(contact.KeyPrefix);
         await MarkNewestReadAsync(key, messages, before, ct);
         var subtitle = contact.Hops is { } h ? $"{h} hop(s)" : "route unknown (floods)";
-        return View("Chat", new ChatViewModel(key, contact.Name, subtitle, contact.PublicKey, null, messages.Reverse().ToList(), await UserNamesAsync(ct), ProtocolLimits.MaxTextBytes, TempData["Draft"] as string));
+        var cli = IsAdmin && contact.Type is AdvertType.Repeater or AdvertType.Room;
+        return View("Chat", new ChatViewModel(key, contact.Name, subtitle, contact.PublicKey, null, messages.Reverse().ToList(), await UserNamesAsync(ct), ProtocolLimits.MaxTextBytes, TempData["Draft"] as string, cli));
     }
 
     /// <summary>
@@ -211,12 +213,14 @@ public sealed class MessagesController(MeshApiClient api) : WebController
     /// without, it's a classic post/redirect/get.
     /// </summary>
     [HttpPost]
-    public async Task<IActionResult> Send(string? contact, byte? channel, string text, CancellationToken ct)
+    public async Task<IActionResult> Send(string? contact, byte? channel, string text, bool cli, CancellationToken ct)
     {
         var ajax = Request.Headers.XRequestedWith == "fetch";
         try
         {
-            var sent = contact is not null
+            var sent = contact is not null && cli
+                ? await api.CliAsync(contact, text, ct)
+                : contact is not null
                 ? await api.SendDirectAsync(contact, text, ct)
                 : await api.SendChannelAsync(channel ?? 0, text, ct);
             if (ajax)

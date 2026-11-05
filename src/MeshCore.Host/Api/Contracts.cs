@@ -42,7 +42,12 @@ public sealed record TokenResponse(string AccessToken, string TokenType, DateTim
 
 public sealed record RadioSettingsResponse(double FrequencyMhz, double BandwidthKhz, int SpreadingFactor, int CodingRate, int TxPowerDbm, int MaxTxPowerDbm);
 
-public sealed record NodeResponse(string Name, string PublicKey, AdvertType Type, double Latitude, double Longitude, RadioSettingsResponse Radio);
+public sealed record NodeResponse(
+    string Name, string PublicKey, AdvertType Type, double Latitude, double Longitude, RadioSettingsResponse Radio, PreferencesResponse Preferences);
+
+/// <param name="AdvertLocationPolicy">0 = don't include location in adverts, 1 = include it.</param>
+/// <param name="TelemetryModes">Packed base/location/environment telemetry permissions: (env << 4) | (loc << 2) | base.</param>
+public sealed record PreferencesResponse(bool ManualAddContacts, int AdvertLocationPolicy, int TelemetryModes, int MultiAcks);
 
 public sealed record HardwareResponse(
     string? Model, string? FirmwareVersion, string? FirmwareBuildDate, int FirmwareVersionCode, int? MaxContacts, int? MaxChannels);
@@ -54,7 +59,8 @@ public sealed record DeviceResponse(
     public static DeviceResponse From(RadioStatus s) => new(
         s.State, s.Endpoint, s.Since, s.LastError, s.NextAttempt,
         s.Self is { } n ? new NodeResponse(n.Name, n.PublicKey.Hex, n.Type, n.Latitude, n.Longitude,
-            new RadioSettingsResponse(n.FrequencyMhz, n.BandwidthKhz, n.SpreadingFactor, n.CodingRate, n.TxPowerDbm, n.MaxTxPowerDbm)) : null,
+            new RadioSettingsResponse(n.FrequencyMhz, n.BandwidthKhz, n.SpreadingFactor, n.CodingRate, n.TxPowerDbm, n.MaxTxPowerDbm),
+            new PreferencesResponse(n.ManualAddContacts, n.AdvertLocationPolicy, n.TelemetryModes, n.MultiAcks)) : null,
         s.Device is { } d ? new HardwareResponse(d.Model, d.FirmwareVersion, d.FirmwareBuildDate, d.FirmwareVersionCode, d.MaxContacts, d.MaxChannels) : null);
 }
 
@@ -96,11 +102,11 @@ public sealed record SetChannelRequest(
 public sealed record MessageResponse(
     long Id, MessageKind Kind, MessageDirection Direction, string? ContactKeyPrefix, byte? ChannelIndex,
     string? SenderName, string Text, DateTimeOffset SenderTimestamp, DateTimeOffset ReceivedAt,
-    double? Snr, int? Hops, DeliveryStatus Status, int? RoundTripMs, bool? Flooded, string? SentByUserId, string? Error)
+    double? Snr, int? Hops, DeliveryStatus Status, int? RoundTripMs, bool? Flooded, string? SentByUserId, string? Error, TextType TextType = TextType.Plain)
 {
     public static MessageResponse From(MessageEntity m) => new(
         m.Id, m.Kind, m.Direction, m.ContactKeyPrefix, m.ChannelIndex, m.SenderName, m.Text, m.SenderTimestamp, m.ReceivedAt,
-        m.Snr, m.Hops, m.Status, m.RoundTripMs, m.Flooded, m.SentByUserId, m.Error);
+        m.Snr, m.Hops, m.Status, m.RoundTripMs, m.Flooded, m.SentByUserId, m.Error, m.TextType);
 }
 
 /// <param name="Contact">The contact's public key, or at least its first 12 hex characters.</param>

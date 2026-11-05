@@ -8,7 +8,7 @@ namespace MeshCore.Protocol;
 /// <see cref="Framing.FrameEncoder"/>). The comment on each method names the reply to expect.
 /// Layouts follow the firmware source; see <c>docs/PROTOCOL.md</c> for the references.
 /// </summary>
-public static class Commands
+public static partial class Commands
 {
     private const int AppStartReservedSize = 6;
 

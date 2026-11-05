@@ -1,0 +1,15 @@
+@model ContactCardViewModel
+@{ ViewData["Title"] = "My contact card"; }
+<div class="app-narrow">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to device"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+        <h1 class="h3 mb-0">My contact card</h1>
+    </div>
+    <div class="card"><div class="card-body">
+        <p>This is <strong>@Model.Name</strong>'s signed advert. Send it to someone outside radio range and they can add you with
+            <em>Contacts → Import</em> in this app (or any MeshCore client that imports exported contacts).</p>
+        <code class="app-mono user-select-all d-block p-2 bg-body-secondary rounded mb-3">@Model.AdvertHex</code>
+        <button type="button" class="btn btn-primary" data-copy="@Model.AdvertHex"><i class="bi bi-clipboard" aria-hidden="true"></i> Copy</button>
+        <p class="small text-body-secondary mt-3 mb-0">It contains only your public key, name and (if shared) location. It's safe to share.</p>
+    </div></div>
+</div>

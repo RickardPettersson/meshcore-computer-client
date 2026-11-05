@@ -72,7 +72,8 @@ exactly one frame, with no header.
 - The radio drops frames whose header doesn't start with `'<'`, and skips frames larger than `MAX_FRAME_SIZE`.
 - The radio sends nothing to detect a dead connection, so `TcpTransport` enables **TCP keep-alive** (15 s idle, then 3 probes 5 s apart).
   A radio that loses power is then noticed in about 30 s.
-- Tested against a **Heltec V4.3 OLED** with companion WiFi firmware v1.18.0.
+- Tested against a **Heltec V4.3 OLED** with companion WiFi firmware v1.18.0. That build has **private key export enabled**, so `EXPORT_PRIVATE_KEY` returns the key.
+  The app keeps that Admin-only and never stores or logs it.
 
 ### USB vs BLE companion firmware
 
@@ -129,6 +130,56 @@ All offsets include the code byte at `[0]`.
 | `PUSH_ADVERT` 0x80 / `PUSH_PATH_UPDATED` 0x81 | `[1..32]` pub key |
 | `PUSH_SEND_CONFIRMED` 0x82 | `[1..4]` ACK code (matches `SENT` expected ACK) · `[5..8]` round trip ms |
 | `PUSH_MSG_WAITING` 0x83 | — (drain with `SYNC_NEXT_MESSAGE`) |
+
+### Node settings, contacts, repeaters and identity — `Commands.Advanced.cs`
+
+Checked against `handleCmdFrame()` in the pinned `MyMesh.cpp` (lines 1266–1830 at that commit).
+
+| Command | Layout | Reply |
+|---|---|---|
+| `SET_ADVERT_LATLON` 0x0E | `[1..4]` lat µ° (int32) · `[5..8]` lon µ° · optional `[9..12]` alt (future) | `OK`, or `ERR` 6 if out of range |
+| `SET_RADIO_PARAMS` 0x0B | `[1..4]` freq **kHz** · `[5..8]` bw **Hz** · `[9]` SF · `[10]` CR · optional `[11]` repeat (v9+). The firmware accepts 150–2500 MHz, 7–500 kHz, SF 5–12, CR 5–8. | `OK` |
+| `SET_RADIO_TX_POWER` 0x0C | `[1]` dBm (**signed**, −9…max) | `OK` |
+| `GET_TUNING_PARAMS` 0x2B | — | `TUNING_PARAMS` 0x17: `[1..4]` rx_delay_base × 1000 · `[5..8]` airtime_factor × 1000 |
+| `SET_TUNING_PARAMS` 0x15 | same two uint32 values | `OK` |
+| `SET_OTHER_PARAMS` 0x26 | `[1]` manual_add_contacts · `[2]` telemetry modes `(env<<4)\|(loc<<2)\|base` · `[3]` advert_loc_policy · `[4]` multi_acks (later bytes optional) | `OK` |
+| `ADD_UPDATE_CONTACT` 0x09 | Same as the contact frame: key · type · flags · out_path_len · out_path(64) · name(32) · last_advert · lat · lon · optional lastmod (`updateContactFromFrame`) | `OK`, or `ERR` 3 (table full) |
+| `GET_CONTACT_BY_KEY` 0x1E · `SHARE_CONTACT` 0x10 · `LOGOUT` 0x1D · `SEND_STATUS_REQ` 0x1B | `[1..32]` pub key | `CONTACT` / `OK` / `OK` / `SENT` + push 0x87 |
+| `EXPORT_CONTACT` 0x11 | `[1..32]` pub key, or **nothing for our own advert** | `EXPORT_CONTACT` 0x0B: `[1..]` signed advert packet |
+| `IMPORT_CONTACT` 0x12 | `[1..]` exported advert (must be > 98 bytes) | `OK`, or `ERR` 6 if it doesn't verify |
+| `SEND_LOGIN` 0x1A | `[1..32]` pub key · `[33..]` password (blank = guest) | `SENT`, then push 0x85 / 0x86 |
+| `SEND_TELEMETRY_REQ` 0x27 | `[1..3]` **reserved** · `[4..35]` pub key. A 4-byte frame means "our own telemetry". | `SENT`, then push 0x8B |
+| `SEND_TRACE_PATH` 0x24 | `[1..4]` tag · `[5..8]` auth · `[9]` flags (hash size = `1 << (flags & 3)`) · `[10..]` path hashes | `SENT`, then push 0x89 with the same tag |
+| `EXPORT_PRIVATE_KEY` 0x17 | — | `PRIVATE_KEY` 0x0E: `[1..64]`, or `DISABLED` 0x0F (`ENABLE_PRIVATE_KEY_EXPORT`) |
+| `IMPORT_PRIVATE_KEY` 0x18 | `[1..64]` | `OK`, `ERR` 6 (invalid key), or `DISABLED` |
+| `SEND_TXT_MSG` 0x02 with `txt_type` 1 (CLI) | as a direct message | `SENT` with **expected_ack 0**: CLI commands are never ACKed. The reply arrives as a contact message with `txt_type` 1. |
+
+| Push | Layout |
+|---|---|
+| `LOGIN_SUCCESS` 0x85 | `[1]` permissions (bit 0 = admin) · `[2..7]` prefix · new servers add `[8..11]` server time · `[12]` ACL permissions · `[13]` firmware level. Legacy "OK" logins stop after the prefix. |
+| `LOGIN_FAIL` 0x86 | `[1]` reserved · `[2..7]` prefix |
+| `STATUS_RESPONSE` 0x87 | `[1]` reserved · `[2..7]` prefix · `[8..]` the server's status struct. Repeaters send `RepeaterStats` (56 bytes, below). |
+| `TELEMETRY_RESPONSE` 0x8B | `[1]` reserved · `[2..7]` prefix · `[8..]` CayenneLPP |
+| `TRACE_DATA` 0x89 | `[1]` reserved · `[2]` path_len (bytes) · `[3]` flags · `[4..7]` tag · `[8..11]` auth · path hashes · one SNR×4 per hop · final SNR×4 (how we heard the last hop) |
+| `CONTACT_DELETED` 0x8F | `[1..32]` key of a contact the radio overwrote to make room |
+| `CONTACTS_FULL` 0x90 | — |
+
+**`RepeaterStats`** comes from [`examples/simple_repeater/MyMesh.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/examples/simple_repeater/MyMesh.h), little-endian:
+- battery mV (u16) · TX queue length (u16) · noise floor (i16) · last RSSI (i16)
+- packets received / sent (u32 ×2) · TX airtime s (u32) · uptime s (u32)
+- sent flood / direct, received flood / direct (u32 ×4)
+- error events (u16) · last SNR×4 (i16) · direct / flood duplicates (u16 ×2)
+- RX airtime s (u32) · receive errors (u32)
+
+Room servers send a different struct; the app shows those bytes raw.
+
+**CayenneLPP** values are **big-endian** (unlike the rest of the protocol): channel, type, then the value. The types and scales
+come from [`LPPDataHelpers.h`](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/src/helpers/sensors/LPPDataHelpers.h).
+For example, 116 is voltage (u16 ÷ 100), 103 is temperature (i16 ÷ 10), and 136 is GPS (3 × 3 signed bytes: lat and lon ÷ 10000, altitude ÷ 100).
+`CayenneLpp.Decode` stops at the first unknown type, or at zero padding.
+
+**Trace path built by the app:** the contact's out-path, then the target's hash, then the out-path reversed, so the trace
+comes back to us. A contact with an unknown route can't be traced. 3-byte path hashes can't be traced either, because the trace flags only allow 1, 2 or 4 bytes.
 
 ### The `path_len` byte (`PathLength`)
 

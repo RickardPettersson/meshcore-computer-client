@@ -18,7 +18,32 @@
     </div>
     <a class="btn btn-sm btn-outline-secondary" asp-action="Index" asp-route-removed="@(!showRemoved)">@(showRemoved ? "Hide removed" : "Show removed")</a>
     <form asp-action="Refresh" method="post"><button class="btn btn-sm btn-outline-primary" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Refresh</button></form>
+    @if (isAdmin)
+    {
+        <a class="btn btn-sm btn-outline-primary" asp-action="Import"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> Import</a>
+    }
 </div>
+
+@if (ViewData["Discovered"] is DiscoveredNodeResponse[] { Length: > 0 } heard)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header"><i class="bi bi-ear me-2" aria-hidden="true"></i>Heard nodes <span class="text-body-secondary small">not in your contacts yet</span></div>
+        <ul class="list-group list-group-flush">
+            @foreach (var h in heard)
+            {
+                <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                    <i class="bi @Icon(h.Type)" aria-hidden="true"></i>
+                    <span class="me-auto"><strong>@h.Name</strong> <span class="small text-body-secondary">@h.Type · @(h.Hops is { } hh ? $"{hh} hop(s)" : "flood") · <partial name="_Time" model="@((DateTimeOffset?)h.HeardAt)" /></span></span>
+                    @if (isAdmin)
+                    {
+                        <form asp-action="AddDiscovered" method="post"><input type="hidden" name="key" value="@h.PublicKey"><input type="hidden" name="name" value="@h.Name">
+                            <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-person-plus" aria-hidden="true"></i> Add</button></form>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+}
 
 @if (Model.Length == 0)
 {
@@ -37,7 +62,7 @@ else
                 <div class="d-flex gap-3 align-items-start">
                     <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true"><i class="bi @Icon(c.Type)"></i></span>
                     <div class="flex-grow-1 min-w-0">
-                        <div class="d-flex gap-2"><strong class="text-truncate me-auto">@c.Name</strong>@if (c.Favourite) { <i class="bi bi-star-fill text-warning" title="Favourite"></i> }</div>
+                        <div class="d-flex gap-2"><a class="text-truncate me-auto fw-bold text-decoration-none" asp-action="Details" asp-route-id="@c.PublicKey">@c.Name</a>@if (c.Favourite) { <i class="bi bi-star-fill text-warning" title="Favourite"></i> }</div>
                         <div class="small text-body-secondary">@c.Type · @(c.Hops is { } h ? $"{h} hop(s)" : "floods") · <span class="app-mono">@c.KeyPrefix</span></div>
                         <div class="small text-body-secondary">Heard <partial name="_Time" model="@(c.LastHeard ?? c.LastAdvert)" /></div>
                     </div>
@@ -63,7 +88,7 @@ else
                 @foreach (var c in Model)
                 {
                     <tr class="@(c.IsOnRadio ? "" : "opacity-50")">
-                        <td><i class="bi @Icon(c.Type) me-1" aria-hidden="true"></i><strong>@c.Name</strong>@if (c.Favourite) { <i class="bi bi-star-fill text-warning ms-1" title="Favourite"></i> }@if (!c.IsOnRadio) { <span class="badge text-bg-secondary ms-1">removed</span> }</td>
+                        <td><i class="bi @Icon(c.Type) me-1" aria-hidden="true"></i><a class="fw-bold text-decoration-none" asp-action="Details" asp-route-id="@c.PublicKey">@c.Name</a>@if (c.Favourite) { <i class="bi bi-star-fill text-warning ms-1" title="Favourite"></i> }@if (!c.IsOnRadio) { <span class="badge text-bg-secondary ms-1">removed</span> }</td>
                         <td>@c.Type</td>
                         <td>@(c.Hops is { } h ? $"{h} hop(s)" : "floods")</td>
                         <td class="app-mono">@c.KeyPrefix</td>

@@ -1,0 +1,173 @@
+@model NodeSettingsViewModel
+@{
+    ViewData["Title"] = "Node settings";
+    var n = Model.Device.Node!; // only used when connected (checked below)
+    var connected = Model.Device.State == MeshCore.Host.Radio.RadioState.Connected && Model.Device.Node is not null;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+}
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to device"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+    <div>
+        <h1 class="h3 mb-0">Node settings</h1>
+        <p class="text-body-secondary small mb-0">Saved on the radio. Admins only.</p>
+    </div>
+</div>
+
+@if (!connected)
+{
+    <div class="alert alert-warning">The radio isn't connected, so settings can't be read or changed right now.</div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-tag me-2" aria-hidden="true"></i>Name</div><div class="card-body">
+                <form asp-action="Name" method="post" class="d-flex gap-2">
+                    <label for="name" class="visually-hidden">Node name</label>
+                    <input id="name" name="name" class="form-control" value="@n.Name" maxlength="31" required>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </form>
+                <div class="form-text">Shown to others in adverts and in front of every channel message ("@n.Name: …"). Up to 31 bytes; a shorter name leaves more room for channel text.</div>
+            </div></div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Location</div><div class="card-body">
+                <form asp-action="Location" method="post">
+                    <div class="row g-2">
+                        <div class="col-6"><label for="lat" class="form-label small">Latitude</label>
+                            <input id="lat" name="latitude" type="number" step="0.000001" min="-90" max="90" class="form-control" value="@n.Latitude.ToString("0.######", inv)" required></div>
+                        <div class="col-6"><label for="lon" class="form-label small">Longitude</label>
+                            <input id="lon" name="longitude" type="number" step="0.000001" min="-180" max="180" class="form-control" value="@n.Longitude.ToString("0.######", inv)" required></div>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="btn btn-primary" type="submit">Save</button>
+                        <button class="btn btn-outline-secondary" type="button" data-geolocate data-lat="lat" data-lon="lon"><i class="bi bi-crosshair" aria-hidden="true"></i> Use this device's location</button>
+                    </div>
+                </form>
+                <div class="form-text">Only included in adverts if "Share location in adverts" is on below.</div>
+            </div></div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-sliders me-2" aria-hidden="true"></i>Preferences</div><div class="card-body">
+                <form asp-action="Preferences" method="post">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="manual" name="manualAddContacts" value="true" checked="@n.Preferences.ManualAddContacts">
+                        <label class="form-check-label" for="manual">Add new contacts manually <span class="text-body-secondary small d-block">Nodes heard advertising are listed under Contacts → Heard nodes instead of being added straight away.</span></label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="share-loc" name="shareLocation" value="true" checked="@(n.Preferences.AdvertLocationPolicy != 0)">
+                        <label class="form-check-label" for="share-loc">Share location in adverts</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="acks" class="form-label">Extra ACKs <span class="text-body-secondary small">(re-sent delivery confirmations, helps on busy meshes)</span></label>
+                        <select id="acks" name="multiAcks" class="form-select w-auto">
+                            @for (var i = 0; i <= 3; i++)
+                            {
+                                <option value="@i" selected="@(n.Preferences.MultiAcks == i)">@i</option>
+                            }
+                        </select>
+                    </div>
+                    <input type="hidden" name="telemetryModes" value="@n.Preferences.TelemetryModes">
+                    <button class="btn btn-primary" type="submit">Save preferences</button>
+                </form>
+            </div></div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-reception-4 me-2" aria-hidden="true"></i>Transmit power</div><div class="card-body">
+                <form asp-action="TxPower" method="post" class="d-flex gap-2 align-items-end">
+                    <div>
+                        <label for="dbm" class="form-label">TX power (dBm)</label>
+                        <input id="dbm" name="dbm" type="number" min="-9" max="@n.Radio.MaxTxPowerDbm" class="form-control" value="@n.Radio.TxPowerDbm" required>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </form>
+                <div class="form-text">This radio allows up to @n.Radio.MaxTxPowerDbm dBm. Higher power reaches further but uses more battery; follow your local regulations.</div>
+            </div></div>
+        </div>
+
+        <div class="col-12">
+            <div class="card border-warning"><div class="card-header text-warning-emphasis"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Radio (LoRa) settings</div><div class="card-body">
+                <p class="small">Every node in a mesh must use exactly the same frequency, bandwidth, spreading factor and coding rate. If you change these, this radio stops hearing nodes that keep the old settings. Only change them to match your local mesh.</p>
+                <form asp-action="RadioParams" method="post" class="row g-2 align-items-end"
+                      data-confirm="Change the radio settings? If they don't match your mesh, this node will go silent until they're set back." data-confirm-button="Change radio settings">
+                    <div class="col-6 col-md-3"><label for="freq" class="form-label small">Frequency (MHz)</label>
+                        <input id="freq" name="FrequencyMhz" type="number" step="0.001" min="150" max="2500" class="form-control" value="@n.Radio.FrequencyMhz.ToString("0.000", inv)" required></div>
+                    <div class="col-6 col-md-3"><label for="bw" class="form-label small">Bandwidth (kHz)</label>
+                        <select id="bw" name="BandwidthKhz" class="form-select">
+                            @foreach (var bw in new[] { 7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125.0, 250.0, 500.0 })
+                            {
+                                <option value="@bw.ToString(inv)" selected="@(Math.Abs(bw - n.Radio.BandwidthKhz) < 0.1)">@bw.ToString(inv)</option>
+                            }
+                        </select></div>
+                    <div class="col-6 col-md-2"><label for="sf" class="form-label small">Spreading factor</label>
+                        <select id="sf" name="SpreadingFactor" class="form-select">
+                            @for (var sf = 5; sf <= 12; sf++)
+                            {
+                                <option value="@sf" selected="@(sf == n.Radio.SpreadingFactor)">SF@(sf)</option>
+                            }
+                        </select></div>
+                    <div class="col-6 col-md-2"><label for="cr" class="form-label small">Coding rate</label>
+                        <select id="cr" name="CodingRate" class="form-select">
+                            @for (var cr = 5; cr <= 8; cr++)
+                            {
+                                <option value="@cr" selected="@(cr == n.Radio.CodingRate)">4/@(cr)</option>
+                            }
+                        </select></div>
+                    <div class="col-12 col-md-2"><button class="btn btn-warning w-100" type="submit">Apply</button></div>
+                </form>
+            </div></div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-header"><i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Tuning</div><div class="card-body">
+                @if (Model.Tuning is { } t)
+                {
+                    <form asp-action="Tuning" method="post" class="row g-2 align-items-end">
+                        <div class="col-6"><label for="rxd" class="form-label small">RX delay base</label>
+                            <input id="rxd" name="rxDelayBase" type="number" step="0.001" min="0" max="20" class="form-control" value="@t.RxDelayBase.ToString("0.###", inv)"></div>
+                        <div class="col-6"><label for="af" class="form-label small">Airtime factor</label>
+                            <input id="af" name="airtimeFactor" type="number" step="0.001" min="0" max="9" class="form-control" value="@t.AirtimeFactor.ToString("0.###", inv)"></div>
+                        <div class="col-12"><button class="btn btn-outline-primary" type="submit">Save tuning</button></div>
+                    </form>
+                    <div class="form-text">Advanced: how long the node waits before repeating, and how much airtime it allows itself. Leave as is unless you know your mesh needs it.</div>
+                }
+                else
+                {
+                    <p class="text-body-secondary mb-0">Couldn't read the tuning values.</p>
+                }
+            </div></div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100 border-danger"><div class="card-header text-danger-emphasis"><i class="bi bi-key me-2" aria-hidden="true"></i>Identity (private key)</div><div class="card-body">
+                <p class="small">The private key <em>is</em> this node's identity. Anyone who has it can pretend to be this node. Back it up only somewhere safe.</p>
+                @if (Model.RevealedPrivateKey is { } key)
+                {
+                    <div class="alert alert-danger small">
+                        <code class="app-mono user-select-all d-block mb-2">@key</code>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-copy="@key"><i class="bi bi-clipboard" aria-hidden="true"></i> Copy</button>
+                        <div class="mt-2">Shown once. It isn't stored or logged by this app.</div>
+                    </div>
+                }
+                else
+                {
+                    <form asp-action="RevealKey" method="post" class="mb-3" data-confirm="Show this node's private key on screen?" data-confirm-button="Show key">
+                        <button class="btn btn-outline-danger" type="submit"><i class="bi bi-eye" aria-hidden="true"></i> Show private key (backup)</button>
+                    </form>
+                }
+                <details>
+                    <summary class="small">Restore a backed-up identity…</summary>
+                    <form asp-action="ImportKey" method="post" class="mt-2" data-confirm="Replace this node's identity? Its public key changes, so every contact will need to re-add it." data-confirm-button="Replace identity">
+                        <label for="pk" class="visually-hidden">Private key</label>
+                        <input id="pk" name="privateKeyHex" class="form-control app-mono mb-2" pattern="[0-9a-fA-F]{128}" placeholder="128 hex characters" autocomplete="off" spellcheck="false" required>
+                        <button class="btn btn-danger" type="submit">Replace identity</button>
+                    </form>
+                </details>
+                <div class="form-text">Many firmware builds have key export/import switched off; you'll see a message if so.</div>
+            </div></div>
+        </div>
+    </div>
+}

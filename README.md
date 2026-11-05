@@ -4,7 +4,7 @@ A .NET 10 app that connects to a [MeshCore](https://github.com/meshcore-dev/Mesh
 WiFi (TCP) or USB serial. It stores messages, contacts and channels in SQLite, and will host a REST API and a
 responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
-**Status:** phases 1–6 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
+**Status:** phases 1–7 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
 
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
@@ -59,6 +59,15 @@ or as `?access_token=` for WebSockets. It sends `message` (new message or delive
 
 > The WiFi firmware serves **one client at a time**. While this app runs, don't connect the phone app or
 > `meshcore-cli` to the same radio. If something else takes the radio over, the app waits 2 minutes before reconnecting.
+
+## Radio features
+
+- **Device → Node settings** (Admin): name, location, LoRa settings, TX power, tuning, preferences, and private key backup and restore.
+  Change LoRa settings only to match your local mesh; with the wrong settings the node goes silent.
+- **Device → My contact card**: your signed advert, for friends to import. Admins import cards under **Contacts → Import**.
+- **Contacts → (a contact)**: trace route, telemetry, share, export card, favourite, and rename. For repeaters and room servers you can also log in and check status.
+  After an admin login, turn on **CLI command** in that repeater's chat to send remote CLI commands; the replies appear in the chat.
+- **Heard nodes**: when "add contacts manually" is on, newly heard nodes are listed on the Contacts page to add.
 
 ## Try it without a radio
 

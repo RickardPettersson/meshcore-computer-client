@@ -38,7 +38,7 @@
     @foreach (var m in Model.Messages)
     {
         var mine = m.Direction == MessageDirection.Outgoing;
-        <div class="app-bubble @(mine ? "mine" : "theirs")" data-id="@m.Id">
+        <div class="app-bubble @(mine ? "mine" : "theirs") @(m.TextType == MeshCore.Protocol.TextType.CliData ? "font-monospace small" : "")" data-id="@m.Id">
             @if (!mine && isChannel && m.SenderName is { } who)
             {
                 <div class="fw-semibold small" data-sender>@who</div>
@@ -95,8 +95,15 @@
                   data-byte-limit="@Model.MaxBytes" data-counter="byte-count" autocomplete="off">@Model.Draft</textarea>
         <button type="submit" class="btn btn-primary" aria-label="Send"><i class="bi bi-send" aria-hidden="true"></i></button>
     </div>
-    <div class="d-flex small text-body-secondary mt-1">
-        <span class="me-auto">@(isChannel ? "Channel messages aren't confirmed." : "Delivery is confirmed by the recipient: ✓ sent, ✓✓ delivered.")</span>
+    <div class="d-flex flex-wrap gap-2 small text-body-secondary mt-1">
+        @if (Model.CliAvailable)
+        {
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="cli" name="cli" value="true">
+                <label class="form-check-label" for="cli">CLI command <span class="d-none d-sm-inline">(needs an admin login on the Contacts page)</span></label>
+            </div>
+        }
+        <span class="me-auto">@(isChannel ? "Channel messages aren't confirmed." : Model.CliAvailable ? "" : "Delivery is confirmed by the recipient: ✓ sent, ✓✓ delivered.")</span>
         <span id="byte-count">0 / @Model.MaxBytes</span>
     </div>
 </form>

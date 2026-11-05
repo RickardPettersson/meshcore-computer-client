@@ -20,5 +20,8 @@ public sealed class MeshCoreClientOptions
     /// <summary>Set the radio clock from this computer on connect (the radio has no RTC).</summary>
     public bool SyncDeviceClock { get; set; } = true;
 
+    /// <summary>Shortest wait for a remote node's answer (login, status, telemetry, trace), whatever the radio estimates.</summary>
+    public TimeSpan MinRemoteReplyWait { get; set; } = TimeSpan.FromSeconds(10);
+
     public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 }

@@ -5,7 +5,14 @@
     var isAdmin = User.IsInRole(nameof(UserRole.Admin));
     var connected = d.State == MeshCore.Host.Radio.RadioState.Connected;
 }
-<partial name="_PageHeader" model="@(("Device", (string?)d.Endpoint))" />
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="me-auto"><h1 class="h3 mb-0">Device</h1><p class="text-body-secondary small mb-0">@d.Endpoint</p></div>
+    <a class="btn btn-sm btn-outline-primary @(connected ? "" : "disabled")" asp-action="Card"><i class="bi bi-person-vcard" aria-hidden="true"></i> My contact card</a>
+    @if (isAdmin)
+    {
+        <a class="btn btn-sm btn-primary" asp-action="Settings"><i class="bi bi-gear" aria-hidden="true"></i> Node settings</a>
+    }
+</div>
 
 <div class="row g-3">
     <div class="col-lg-6">

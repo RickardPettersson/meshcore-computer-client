@@ -85,7 +85,7 @@ public static class WebSetup
             headers.XContentTypeOptions = "nosniff";
             headers.XFrameOptions = "DENY";
             headers["Referrer-Policy"] = "same-origin";
-            headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+            headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"; // location: "use this device's location" in node settings
         }
         await next();
     });

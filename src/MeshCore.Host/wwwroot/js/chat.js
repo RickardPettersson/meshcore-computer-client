@@ -47,6 +47,7 @@
         var mine = m.direction === 'Outgoing';
         var el = template.content.firstElementChild.cloneNode(true);
         el.classList.add(mine ? 'mine' : 'theirs');
+        if (m.textType === 'CliData') { el.classList.add('font-monospace', 'small'); }
         el.dataset.id = m.id;
         el.querySelector('[data-text]').textContent = m.text;
         if (!mine && isChannel && m.senderName) {

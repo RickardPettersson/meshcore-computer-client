@@ -198,7 +198,7 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
     /// <summary>Stores an outgoing message as <see cref="DeliveryStatus.Sending"/> before it goes to the radio.</summary>
     public async Task<MessageEntity> SaveOutgoingAsync(
         MessageKind kind, string? contactKeyPrefix, byte? channelIndex, string senderName, string text, string? userId,
-        CancellationToken cancellationToken = default)
+        Protocol.TextType textType = Protocol.TextType.Plain, CancellationToken cancellationToken = default)
     {
         var now = _time.GetUtcNow();
         var row = new MessageEntity
@@ -212,6 +212,7 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
             SenderTimestamp = now,
             ReceivedAt = now,
             Status = DeliveryStatus.Sending,
+            TextType = textType,
             SentByUserId = userId,
         };
 

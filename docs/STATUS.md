@@ -1,6 +1,6 @@
 # Project Status
 
-*Last updated: 2026-11-04 · Phases 1–6 of 8 done*
+*Last updated: 2026-11-05 · Phases 1–7 of 8 done*
 
 This page shows how far the project has come: what works today, what has been tested on real hardware,
 and what's next. The full design is in [PLAN.md](PLAN.md), and the protocol reference is in [PROTOCOL.md](PROTOCOL.md).
@@ -14,8 +14,8 @@ Phase 3  Storage + radio service     ██████████  done
 Phase 4  REST API + auth             ██████████  done
 Phase 5  Website (MVC BFF)           ██████████  done
 Phase 6  Live chat UI                ██████████  done
-Phase 7  Advanced radio features     ░░░░░░░░░░  next
-Phase 8  Polish + packaging          ░░░░░░░░░░
+Phase 7  Advanced radio features     ██████████  done
+Phase 8  Polish + packaging          ░░░░░░░░░░  next
 ```
 
 | # | Phase | Status | Result |
@@ -26,8 +26,8 @@ Phase 8  Polish + packaging          ░░░░░░░░░░
 | 4 | REST API + auth | ✅ Done | `/api/v1` for the device, contacts, channels and messages; first-run Admin setup; users and roles; JWT with instant revocation; lockout and rate limits; OpenAPI + Scalar |
 | 5 | Website | ✅ Done | Responsive Bootstrap 5.3 site (bottom tabs on phones, sidebar on desktop) as an MVC proxy to the API: setup, sign-in, forced password change, dashboard, chats, contacts, channels, device, user admin |
 | 6 | Live chat UI | ✅ Done | SignalR live updates, delivery ticks that update by themselves, per-user unread badges, toasts, sending without reload, catch-up after reconnect, PWA manifest + offline page, radio simulator |
-| 7 | Advanced features | ⏳ Next | Rename node, radio settings, add/remove contacts, repeater login/status/telemetry, key export |
-| 8 | Polish | Planned | HTTPS for LAN use, file logging, single-file build, setup guide |
+| 7 | Advanced features | ✅ Done | Node settings (name, location, LoRa, TX power, tuning, preferences), contact cards (export/import), favourites, rename, heard-nodes list, repeater login/status/telemetry/trace, remote CLI in the chat, private key backup/restore |
+| 8 | Polish | ⏳ Next | HTTPS for LAN use, file logging, single-file build, setup guide |
 
 ## What works today
 
@@ -48,6 +48,9 @@ Phase 8  Polish + packaging          ░░░░░░░░░░
 - **Website** at `http://<this computer>:5080` for phone and desktop browsers, with **live chat**:
   - New messages appear in the open chat without reloading, and delivery ticks go from ✓ to ✓✓ by themselves.
   - Unread badges are per user, and toasts appear for messages in other chats.
+- **Node settings** (Admin): name, location, LoRa settings (with warnings), TX power, tuning, preferences, and private key backup and restore.
+- **Contacts**: details page, favourite, rename, share nearby, export and import contact cards, and a "heard nodes" list to add from.
+- **Repeaters and room servers**: log in (guest or admin), status (battery, noise, packet counts, uptime), telemetry, and route trace with SNR per hop. Admins can send remote CLI commands from the chat, and the replies appear live.
 - **Radio simulator** (`MeshCore:Connection = "simulator"`): pretend contacts and channels that chat, ACK and reply, for demos and development without transmitting.
   - First visit: create the Admin. Admins add users under Settings → Users.
   - Pages: dashboard, chats (read and send), contacts, channels (add, edit, share key), device (adverts, clock, reboot), light/dark theme.
@@ -56,8 +59,8 @@ Phase 8  Polish + packaging          ░░░░░░░░░░
 
 | Device | Firmware | Link | Result |
 |---|---|---|---|
-| Heltec V4.3 OLED | Companion WiFi v1.18.0 | TCP 192.168.1.212:5000 | ✅ Info, contacts, channels, messages, listen, host service, takeover backoff, REST API (device, battery, clock, channels, channel key), website at phone and desktop sizes |
-| Built-in simulator | — | in-process | ✅ Live chat end to end: incoming messages, sending, ✓→✓✓ ticks, unread badges, toasts (phone and desktop sizes) |
+| Heltec V4.3 OLED | Companion WiFi v1.18.0 | TCP 192.168.1.212:5000 | ✅ Info, contacts, channels, messages, listen, host service, takeover backoff, REST API, website at phone and desktop sizes, Phase 7 read-only values (preferences, tuning, contact card, key export available) |
+| Built-in simulator | — | in-process | ✅ Live chat end to end, plus every Phase 7 feature: settings, rename, repeater login, status, telemetry, trace, CLI in chat |
 | LilyGo T-Echo | Companion **BLE** | USB COM11 | ❌ Not usable: the BLE build ignores USB serial (see PROTOCOL.md) |
 
 Not tested over the air yet: sending a real message and receiving its ACK. The tests cover these with a scripted radio.
@@ -66,19 +69,19 @@ Not tested over the air yet: sending a real message and receiving its ACK. The t
 
 | Project | Purpose | Files | Lines |
 |---|---|---:|---:|
-| `src/MeshCore.Protocol` | Byte-level protocol, no I/O | 16 | 1,097 |
-| `src/MeshCore.Client` | Transports, client, port discovery | 12 | 1,289 |
-| `src/MeshCore.Data` | EF Core + SQLite storage | 3 | 659 |
-| `src/MeshCore.Host` | The app: radio service, REST API, auth, website (C# + Razor), live hub, simulator, console chat | 54 | 4,651 |
+| `src/MeshCore.Protocol` | Byte-level protocol, no I/O | 19 | 1,523 |
+| `src/MeshCore.Client` | Transports, client, port discovery | 13 | 1,465 |
+| `src/MeshCore.Data` | EF Core + SQLite storage | 3 | 660 |
+| `src/MeshCore.Host` | The app: radio service, REST API, auth, website (C# + Razor), live hub, simulator, console chat | 62 | 6,043 |
 | `tools/MeshCore.Cli` | Diagnostic CLI | 1 | 332 |
-| `wwwroot` (own CSS/JS) | Layout, theme, live updates, chat, service worker | 6 | 635 |
-| **Application code** | | **92** | **8,663** |
-| `tests/*` (3 projects) | Unit and integration tests | 15 | 2,553 |
+| `wwwroot` (own CSS/JS) | Layout, theme, live updates, chat, service worker | 6 | 647 |
+| **Application code** | | **104** | **10,670** |
+| `tests/*` (3 projects) | Unit and integration tests | 18 | 3,105 |
 | `docs/` + README | Plan, protocol reference, status | 4 | ~500 |
 
 C# and Razor lines exclude generated EF migrations and the Bootstrap library files.
 
-**154 automated tests**, all passing: 55 protocol, 35 client, and 64 host tests (API, website, live hub, unread, simulator).
+**194 automated tests**, all passing: 78 protocol, 42 client, and 74 host tests (API, website, live hub, unread, simulator, radio features).
 None of them need a radio: they use a scripted fake radio, a local TCP server, in-memory SQLite, and the whole app hosted in memory.
 
 ## Known gaps and decisions
@@ -86,9 +89,10 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 - **One WiFi client at a time.** This is how the firmware works. The phone app and this app can't both use the radio over WiFi.
 - **BLE isn't supported.** USB or WiFi companion firmware is needed. A BLE transport could be added later behind the same `ITransport` interface.
 - **Node name is still the default** (`010A2CFB`). It's added in front of every channel message, so it limits channel text to 150 bytes.
-  Renaming is in Phase 7.
+  You can now rename it under Device → Node settings.
 - **The website runs over plain HTTP on the LAN** (`:5080`). Cookies are HttpOnly and SameSite=Strict but not yet Secure-only. HTTPS comes in Phase 8 (`Web:RequireHttps`).
 - **Installing as an app needs HTTPS on phones.** Browsers only allow service workers on HTTPS (or localhost), so "Add to Home Screen" works but offline support and install prompts wait for Phase 8. Not yet verified on a real phone.
+- **Remote repeater features haven't been tried over the air yet.** Your radio knows 6 repeaters and a room server, all with unknown routes. Status, telemetry and login send packets, so they're left for you to try. Trace needs a learned route first.
 - **Live connections stay open after a user is disabled** until they reload. API calls are refused immediately; the open SignalR connection only carries notifications.
 
 ## History
@@ -101,3 +105,4 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 | `1b9915d` | Phase 4: REST API, authentication and user management |
 | `1219178` | Phase 5: responsive website (MVC BFF) |
 | `a0af635` | Phase 6: live chat, unread markers, PWA, simulator |
+| `phase-7-radio-features` | Phase 7: node settings, contacts, repeaters, identity |
