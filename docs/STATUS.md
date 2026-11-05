@@ -105,4 +105,4 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 | `1b9915d` | Phase 4: REST API, authentication and user management |
 | `1219178` | Phase 5: responsive website (MVC BFF) |
 | `a0af635` | Phase 6: live chat, unread markers, PWA, simulator |
-| `phase-7-radio-features` | Phase 7: node settings, contacts, repeaters, identity |
+| `9e90531` | Phase 7: node settings, contacts, repeaters, identity |
