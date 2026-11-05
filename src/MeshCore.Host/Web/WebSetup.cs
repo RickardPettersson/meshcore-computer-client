@@ -99,7 +99,7 @@ public static class WebSetup
         var path = http.Request.Path;
         var isPage = HttpMethods.IsGet(http.Request.Method)
                      && !path.StartsWithSegments("/api") && !path.StartsWithSegments("/Account/Setup")
-                     && !path.StartsWithSegments("/Account/Status") && !path.StartsWithSegments("/healthz")
+                     && !path.StartsWithSegments("/Account/Status") && !path.StartsWithSegments("/Account/Certificate") && !path.StartsWithSegments("/Account/CertificateFile") && !path.StartsWithSegments("/healthz")
                      && !path.StartsWithSegments("/openapi") && !path.StartsWithSegments("/scalar");
         if (isPage && await http.RequestServices.GetRequiredService<SetupGate>().IsSetupRequiredAsync(http.RequestAborted))
         {

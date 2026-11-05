@@ -279,7 +279,7 @@ Command-line overrides work out of the box, e.g. `MeshCore.Host.exe --MeshCore:C
 | 5 | MVC BFF: setup/login/change-password, responsive layout (bottom tabs / sidebar), Dashboard, Chats, Contacts, Channels, Device, Settings → Users | ✅ Checked at phone and desktop sizes against the Heltec; Admin adds a user who signs in (tested) |
 | 6 | Responsive Messages chat UI + SignalR live updates + ACK ticks + per-user unread + PWA manifest + radio simulator | ✅ Live chat checked at phone and desktop sizes against the simulator (PWA install not yet verified on a phone) |
 | 7 | Advanced: repeater login/status/telemetry/trace/CLI, radio settings, contact management, key import/export | ✅ All features checked against the simulator; read-only values checked on the Heltec |
-| 8 | Polish: reconnect UX, logging (Serilog → console/file), `dotnet publish` single-file exe, README | One exe to run |
+| 8 | Polish: HTTPS for LAN (own CA + site certificate), log files (Serilog), Windows service / systemd, single-file publish (win-x64, linux-x64, linux-arm64), setup guide | ✅ Published exe run from another folder: HTTPS verified with a strict client, logs written, Heltec connected |
 
 ## 9. Decisions
 

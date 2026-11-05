@@ -1,6 +1,6 @@
 # Project Status
 
-*Last updated: 2026-11-05 · Phases 1–7 of 8 done*
+*Last updated: 2026-11-05 · All 8 phases done*
 
 This page shows how far the project has come: what works today, what has been tested on real hardware,
 and what's next. The full design is in [PLAN.md](PLAN.md), and the protocol reference is in [PROTOCOL.md](PROTOCOL.md).
@@ -15,7 +15,7 @@ Phase 4  REST API + auth             ██████████  done
 Phase 5  Website (MVC BFF)           ██████████  done
 Phase 6  Live chat UI                ██████████  done
 Phase 7  Advanced radio features     ██████████  done
-Phase 8  Polish + packaging          ░░░░░░░░░░  next
+Phase 8  Polish + packaging          ██████████  done
 ```
 
 | # | Phase | Status | Result |
@@ -27,7 +27,7 @@ Phase 8  Polish + packaging          ░░░░░░░░░░  next
 | 5 | Website | ✅ Done | Responsive Bootstrap 5.3 site (bottom tabs on phones, sidebar on desktop) as an MVC proxy to the API: setup, sign-in, forced password change, dashboard, chats, contacts, channels, device, user admin |
 | 6 | Live chat UI | ✅ Done | SignalR live updates, delivery ticks that update by themselves, per-user unread badges, toasts, sending without reload, catch-up after reconnect, PWA manifest + offline page, radio simulator |
 | 7 | Advanced features | ✅ Done | Node settings (name, location, LoRa, TX power, tuning, preferences), contact cards (export/import), favourites, rename, heard-nodes list, repeater login/status/telemetry/trace, remote CLI in the chat, private key backup/restore |
-| 8 | Polish | ⏳ Next | HTTPS for LAN use, file logging, single-file build, setup guide |
+| 8 | Polish | ✅ Done | HTTPS for phones (own local CA + site certificate, help page to install it), daily log files, Windows service / systemd, single-file builds for Windows, Linux and Raspberry Pi, setup guide |
 
 ## What works today
 
@@ -45,6 +45,7 @@ Phase 8  Polish + packaging          ░░░░░░░░░░  next
   - The first Admin is created with `POST /auth/setup`. Admins add users, and each new user must change their temporary password.
   - Users can read and send. Admins also manage users, channels, contacts, the clock and reboot.
 - **Status endpoint**: `GET http://127.0.0.1:5081/healthz` (anonymous, state only).
+- **Run it for real**: a single-file build for Windows, Linux or Raspberry Pi, HTTPS for phones, daily log files in `data/logs`, and install scripts for a Windows service or systemd unit. See [SETUP.md](SETUP.md).
 - **Website** at `http://<this computer>:5080` for phone and desktop browsers, with **live chat**:
   - New messages appear in the open chat without reloading, and delivery ticks go from ✓ to ✓✓ by themselves.
   - Unread badges are per user, and toasts appear for messages in other chats.
@@ -59,7 +60,7 @@ Phase 8  Polish + packaging          ░░░░░░░░░░  next
 
 | Device | Firmware | Link | Result |
 |---|---|---|---|
-| Heltec V4.3 OLED | Companion WiFi v1.18.0 | TCP 192.168.1.212:5000 | ✅ Info, contacts, channels, messages, listen, host service, takeover backoff, REST API, website at phone and desktop sizes, Phase 7 read-only values (preferences, tuning, contact card, key export available) |
+| Heltec V4.3 OLED | Companion WiFi v1.18.0 | TCP 192.168.1.212:5000 | ✅ Info, contacts, channels, messages, listen, host service, takeover backoff, REST API, website at phone and desktop sizes, Phase 7 read-only values (preferences, tuning, contact card, key export available), published single-file exe with HTTPS |
 | Built-in simulator | — | in-process | ✅ Live chat end to end, plus every Phase 7 feature: settings, rename, repeater login, status, telemetry, trace, CLI in chat |
 | LilyGo T-Echo | Companion **BLE** | USB COM11 | ❌ Not usable: the BLE build ignores USB serial (see PROTOCOL.md) |
 
@@ -72,16 +73,16 @@ Not tested over the air yet: sending a real message and receiving its ACK. The t
 | `src/MeshCore.Protocol` | Byte-level protocol, no I/O | 19 | 1,523 |
 | `src/MeshCore.Client` | Transports, client, port discovery | 13 | 1,465 |
 | `src/MeshCore.Data` | EF Core + SQLite storage | 3 | 660 |
-| `src/MeshCore.Host` | The app: radio service, REST API, auth, website (C# + Razor), live hub, simulator, console chat | 62 | 6,043 |
+| `src/MeshCore.Host` | The app: radio service, REST API, auth, website (C# + Razor), live hub, simulator, hosting, console chat | 65 | 6,452 |
 | `tools/MeshCore.Cli` | Diagnostic CLI | 1 | 332 |
 | `wwwroot` (own CSS/JS) | Layout, theme, live updates, chat, service worker | 6 | 647 |
-| **Application code** | | **104** | **10,670** |
-| `tests/*` (3 projects) | Unit and integration tests | 18 | 3,105 |
+| **Application code** | | **107** | **11,079** |
+| `tests/*` (3 projects) | Unit and integration tests | 19 | 3,279 |
 | `docs/` + README | Plan, protocol reference, status | 4 | ~500 |
 
 C# and Razor lines exclude generated EF migrations and the Bootstrap library files.
 
-**194 automated tests**, all passing: 78 protocol, 42 client, and 74 host tests (API, website, live hub, unread, simulator, radio features).
+**204 automated tests**, all passing: 78 protocol, 42 client, and 84 host tests (API, website, live hub, unread, simulator, radio features, HTTPS certificates including a real TLS handshake).
 None of them need a radio: they use a scripted fake radio, a local TCP server, in-memory SQLite, and the whole app hosted in memory.
 
 ## Known gaps and decisions
@@ -90,8 +91,9 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 - **BLE isn't supported.** USB or WiFi companion firmware is needed. A BLE transport could be added later behind the same `ITransport` interface.
 - **Node name is still the default** (`010A2CFB`). It's added in front of every channel message, so it limits channel text to 150 bytes.
   You can now rename it under Device → Node settings.
-- **The website runs over plain HTTP on the LAN** (`:5080`). Cookies are HttpOnly and SameSite=Strict but not yet Secure-only. HTTPS comes in Phase 8 (`Web:RequireHttps`).
-- **Installing as an app needs HTTPS on phones.** Browsers only allow service workers on HTTPS (or localhost), so "Add to Home Screen" works but offline support and install prompts wait for Phase 8. Not yet verified on a real phone.
+- **HTTPS uses the app's own certificate authority.** Phones install it once from `/Account/Certificate`, or accept a browser warning. Installing it on a real phone hasn't been tried yet; the chain was verified with a strict TLS client.
+- **Installing as an app** (service worker, offline page) needs the HTTPS address on phones. Not yet verified on a real phone.
+- **The service install scripts haven't been run here.** They need Administrator rights (or sudo) and change the system. The app's service support itself is in place (`UseWindowsService`, `UseSystemd`, app-folder paths).
 - **Remote repeater features haven't been tried over the air yet.** Your radio knows 6 repeaters and a room server, all with unknown routes. Status, telemetry and login send packets, so they're left for you to try. Trace needs a learned route first.
 - **Live connections stay open after a user is disabled** until they reload. API calls are refused immediately; the open SignalR connection only carries notifications.
 
@@ -106,3 +108,4 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
 | `1219178` | Phase 5: responsive website (MVC BFF) |
 | `a0af635` | Phase 6: live chat, unread markers, PWA, simulator |
 | `9e90531` | Phase 7: node settings, contacts, repeaters, identity |
+| `phase-8-polish` | Phase 8: HTTPS, logging, services, single-file builds, setup guide |

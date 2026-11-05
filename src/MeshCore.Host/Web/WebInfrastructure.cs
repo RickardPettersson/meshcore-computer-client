@@ -101,7 +101,7 @@ public sealed class ForcePasswordChangeFilter : IAsyncActionFilter
     {
         var pending = context.HttpContext.User.FindFirst(MeshClaims.MustChangePassword)?.Value == "true";
         var action = context.RouteData.Values["action"] as string;
-        var allowed = Equals(context.RouteData.Values["controller"], "Account") && action is "ChangePassword" or "Logout" or "Login" or "Setup" or "Status" or "Error";
+        var allowed = Equals(context.RouteData.Values["controller"], "Account") && action is "ChangePassword" or "Logout" or "Login" or "Setup" or "Status" or "Error" or "Certificate" or "CertificateFile";
         if (pending && !allowed)
         {
             context.Result = new RedirectToActionResult("ChangePassword", "Account", null);

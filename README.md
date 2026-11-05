@@ -4,7 +4,9 @@ A .NET 10 app that connects to a [MeshCore](https://github.com/meshcore-dev/Mesh
 WiFi (TCP) or USB serial. It stores messages, contacts and channels in SQLite, and will host a REST API and a
 responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
-**Status:** phases 1–7 of 8 done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
+**Status:** all 8 planned phases done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
+
+**Installing it for real?** Follow the [setup guide](docs/SETUP.md): build a single file, set it up, add HTTPS for phones, and run it as a service.
 
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
@@ -13,7 +15,7 @@ Developer reference for the radio protocol, with pinned firmware sources: [docs/
 - .NET 10 SDK
 - A MeshCore companion radio running the **WiFi** or **USB** companion firmware (the BLE build is not supported)
 
-## Run
+## Run (development)
 
 Set the radio address in `src/MeshCore.Host/appsettings.json` (`MeshCore:Connection`), or pass it on the command line:
 
@@ -35,11 +37,12 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
    On a phone, use the browser's "Add to Home Screen" to open it like an app.
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
-The site uses plain HTTP for now; HTTPS for LAN use is planned (Phase 8).
+For phones, use **HTTPS on port 5443**. The app makes its own certificate; open `/Account/Certificate` on the phone to install it (see the [setup guide](docs/SETUP.md#5-phones-https-and-install-as-app)).
 
 | Port | What | Reachable from |
 |---|---|---|
-| 5080 | Website | your network (`Kestrel:Endpoints:Web`) |
+| 5080 | Website over HTTP (redirects to HTTPS) | your network (`Kestrel:Endpoints:Web`) |
+| 5443 | Website over HTTPS | your network (`Web:Https`) |
 | 5081 | REST API | this computer only (`Kestrel:Endpoints:Api`) |
 
 ## REST API

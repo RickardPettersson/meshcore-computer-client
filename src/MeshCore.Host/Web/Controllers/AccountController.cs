@@ -109,6 +109,15 @@ public sealed class AccountController(MeshApiClient api, SetupGate gate) : WebCo
     [HttpGet, AllowAnonymous]
     public IActionResult AccessDenied() => View();
 
+    /// <summary>How to make phones trust this site's HTTPS certificate. Reachable over plain HTTP and before setup.</summary>
+    [HttpGet, AllowAnonymous]
+    public IActionResult Certificate([FromServices] Hosting.HttpsState https) => View(https);
+
+    /// <summary>The local certificate authority (public part only), for installing on phones and other computers.</summary>
+    [HttpGet, AllowAnonymous]
+    public IActionResult CertificateFile([FromServices] Hosting.HttpsState https) =>
+        https.Certificates?.AuthorityDer is { } der ? File(der, "application/x-x509-ca-cert", "meshcore-ca.crt") : NotFound();
+
     /// <summary>Friendly page for 404 and other status codes (re-executed by the status-code middleware).</summary>
     [AllowAnonymous, IgnoreAntiforgeryToken]
     public IActionResult Status(int id) => View(id);

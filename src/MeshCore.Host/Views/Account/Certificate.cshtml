@@ -1,0 +1,67 @@
+@model MeshCore.Host.Hosting.HttpsState
+@{
+    ViewData["Title"] = "Secure connection";
+    var host = Context.Request.Host.Host;
+    var httpsUrl = $"https://{host}:{Model.Options.Port}/";
+    var ca = Model.Certificates?.Authority;
+}
+<div class="app-narrow mx-auto">
+    <div class="text-center mb-4">
+        <i class="bi bi-shield-lock display-5 text-primary" aria-hidden="true"></i>
+        <h1 class="h3 mt-3">Secure connection (HTTPS)</h1>
+    </div>
+
+    @if (!Model.Enabled)
+    {
+        <div class="alert alert-info">HTTPS is turned off on this server (<code>Web:Https:Enabled</code>).</div>
+    }
+    else if (ca is null)
+    {
+        <div class="alert alert-success">This server uses its own certificate. Open <a href="@httpsUrl">@httpsUrl</a>.</div>
+    }
+    else
+    {
+        <p>This app made its own certificate for your home network. Install it once on each phone or computer and the
+            browser will trust <strong>@httpsUrl</strong> with no warnings. This also unlocks offline support and "install as app".</p>
+
+        <a class="btn btn-primary w-100 py-2 mb-2" asp-action="CertificateFile"><i class="bi bi-download" aria-hidden="true"></i> Download certificate</a>
+        <p class="small text-body-secondary text-center">
+            @ca.Subject.Split(',')[0].Replace("CN=", "")<br>
+            Fingerprint (SHA-256): <span class="app-mono">@Convert.ToHexString(ca.GetCertHash(System.Security.Cryptography.HashAlgorithmName.SHA256))[..23]…</span>
+        </p>
+
+        <div class="accordion my-4" id="howto">
+            <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ios">iPhone / iPad</button></h2>
+                <div id="ios" class="accordion-collapse collapse" data-bs-parent="#howto"><div class="accordion-body small">
+                    <ol class="mb-0">
+                        <li>Open this page in <strong>Safari</strong> and tap <em>Download certificate</em>, then <em>Allow</em>.</li>
+                        <li>Settings → <em>Profile Downloaded</em> → <em>Install</em>.</li>
+                        <li>Settings → General → About → <em>Certificate Trust Settings</em> → turn on the MeshCore certificate.</li>
+                    </ol>
+                </div></div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#android">Android</button></h2>
+                <div id="android" class="accordion-collapse collapse" data-bs-parent="#howto"><div class="accordion-body small">
+                    <ol class="mb-0">
+                        <li>Tap <em>Download certificate</em>.</li>
+                        <li>Settings → Security → More security settings → Encryption &amp; credentials → <em>Install a certificate</em> → <em>CA certificate</em> (names vary by phone).</li>
+                        <li>Pick the downloaded <code>meshcore-ca.crt</code>.</li>
+                    </ol>
+                </div></div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#windows">Windows / Mac</button></h2>
+                <div id="windows" class="accordion-collapse collapse" data-bs-parent="#howto"><div class="accordion-body small">
+                    <p class="mb-1"><strong>Windows:</strong> open the file → <em>Install Certificate</em> → Current User → <em>Place all certificates in</em> → <em>Trusted Root Certification Authorities</em>.</p>
+                    <p class="mb-0"><strong>Mac:</strong> open the file in Keychain Access → double-click it → Trust → <em>Always Trust</em>.</p>
+                </div></div>
+            </div>
+        </div>
+
+        <a class="btn btn-outline-primary w-100" href="@httpsUrl">Continue to @httpsUrl</a>
+        <p class="small text-body-secondary mt-3">Only install a certificate you trust: this one only works for this computer's
+            own addresses, and the private key never leaves it. You can also skip it and accept the browser warning instead.</p>
+    }
+</div>

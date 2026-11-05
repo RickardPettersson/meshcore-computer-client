@@ -1,6 +1,7 @@
 using MeshCore.Data;
 using MeshCore.Host.Api;
 using MeshCore.Host.Auth;
+using MeshCore.Host.Hosting;
 using MeshCore.Host.Radio;
 using MeshCore.Host.Realtime;
 using MeshCore.Host.Web;
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = System.Globalization.CultureInfo.InvariantCulture;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(HostingSetup.Options(args));
 
 // ---- Configuration ----------------------------------------------------------
 builder.Services.AddOptions<RadioOptions>()
@@ -22,6 +23,9 @@ builder.Services.AddOptions<RadioOptions>()
 var radioOptions = builder.Configuration.GetSection(RadioOptions.SectionName).Get<RadioOptions>() ?? new RadioOptions();
 var dataDirectory = Path.GetFullPath(radioOptions.DataDirectory, builder.Environment.ContentRootPath);
 Directory.CreateDirectory(dataDirectory);
+
+// ---- Hosting: service support, log files, HTTPS ---------------------------------
+var https = builder.AddMeshCoreHosting(dataDirectory);
 
 // ---- Storage ------------------------------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("Mesh")
@@ -54,6 +58,15 @@ var app = builder.Build();
 
 await app.Services.GetRequiredService<MeshStore>().MigrateAsync();
 await app.Services.GetRequiredService<JwtKeyProvider>().InitializeAsync();
+app.LogHttps(https);
+
+// The API listens on loopback (5081) and the website on the LAN (5080 for HTTP, 5443 for HTTPS). With SeparatePorts
+// each is only served on its own ports, so the API can't be reached through the website.
+var webOptions = app.Configuration.GetSection(WebOptions.SectionName).Get<WebOptions>() ?? new WebOptions();
+var apiPort = WebSetup.PortOf(app.Configuration["Kestrel:Endpoints:Api:Url"]);
+var webPort = WebSetup.PortOf(app.Configuration["Kestrel:Endpoints:Web:Url"]);
+var separatePorts = webOptions.SeparatePorts && apiPort is not null && webPort is not null && apiPort != webPort;
+string[] webHosts = https.Enabled ? [$"*:{webPort}", $"*:{https.Options.Port}"] : [$"*:{webPort}"];
 
 static bool IsApi(HttpContext http) => http.Request.Path.StartsWithSegments("/api");
 
@@ -68,6 +81,7 @@ app.UseWhen(http => !IsApi(http), web =>
     web.UseStatusCodePagesWithReExecute("/Account/Status/{0}");
 });
 app.UseMeshCoreSecurityHeaders();
+app.UseMeshCoreHttpsRedirect(https, separatePorts ? webPort : null);
 app.UseStaticFiles();
 app.UseRouting(); // Explicit, after the status-code pages, so re-executed error pages are routed.
 app.UseMeshCoreSetupGate();
@@ -75,12 +89,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-// The API listens on loopback (5081) and the website on the LAN (5080). With SeparatePorts each is
-// only served on its own port, so the API can't be reached through the website's port.
-var webOptions = app.Configuration.GetSection(WebOptions.SectionName).Get<WebOptions>() ?? new WebOptions();
-var apiPort = WebSetup.PortOf(app.Configuration["Kestrel:Endpoints:Api:Url"]);
-var webPort = WebSetup.PortOf(app.Configuration["Kestrel:Endpoints:Web:Url"]);
-var separatePorts = webOptions.SeparatePorts && apiPort is not null && webPort is not null && apiPort != webPort;
 
 var apiEndpoints = app.MapControllers();
 var webEndpoints = app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
@@ -100,8 +108,8 @@ if (separatePorts)
 {
     apiEndpoints.RequireHost($"*:{apiPort}");
     health.RequireHost($"*:{apiPort}");
-    webEndpoints.RequireHost($"*:{webPort}");
-    webHub.RequireHost($"*:{webPort}");
+    webEndpoints.RequireHost(webHosts);
+    webHub.RequireHost(webHosts);
     apiHub.RequireHost($"*:{apiPort}");
 }
 

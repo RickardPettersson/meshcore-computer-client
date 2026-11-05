@@ -47,6 +47,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("MeshCore:ConsoleChat", "false");
         builder.UseSetting("MeshCore:ReconnectDelays:0", "00:00:00.200");
         builder.UseSetting("Web:SeparatePorts", "false"); // TestServer has no ports
+        builder.UseSetting("Web:Https:Enabled", "false"); // no certificates needed in memory
         builder.UseSetting("Web:ApiBaseUrl", "http://localhost");
         builder.ConfigureLogging(l => l.SetMinimumLevel(LogLevel.Warning));
         builder.ConfigureServices(services =>
