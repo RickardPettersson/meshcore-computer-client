@@ -240,3 +240,21 @@ public class CayenneLppTests
 
     private static byte[] I16Be(short v) => [(byte)(v >> 8), (byte)v];
 }
+
+public class CompanionCliTests
+{
+    [Fact]
+    public void Run_cli_command_is_code_66_plus_text()
+    {
+        Assert.Equal(Wire.Concat(Wire.B(0x42), Wire.Text("get wifi.ip")), Commands.RunCliCommand("  get wifi.ip "));
+        Assert.Throws<ArgumentException>(() => Commands.RunCliCommand(" "));
+    }
+
+    [Fact]
+    public void Cli_reply_is_code_29_plus_text()
+    {
+        var reply = Assert.IsType<CliReply>(FrameParser.Parse(Wire.Concat(Wire.B(0x1D), Wire.Text("> 192.168.1.212"))));
+
+        Assert.Equal("> 192.168.1.212", reply.Text);
+    }
+}

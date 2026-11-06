@@ -90,6 +90,10 @@ public sealed partial class MeshCoreClient
     public Task<MessageSent> SendCliCommandAsync(PublicKeyPrefix recipient, string command, CancellationToken cancellationToken = default) =>
         ExecuteAsync<MessageSent>(Commands.SendTextMessage(recipient, command, Now, textType: TextType.CliData), cancellationToken);
 
+    /// <summary>Runs a CLI command on the companion radio itself (firmware v14+) and returns its reply text.</summary>
+    public async Task<string> RunCliCommandAsync(string command, CancellationToken cancellationToken = default) =>
+        (await ExecuteAsync<CliReply>(Commands.RunCliCommand(command), cancellationToken).ConfigureAwait(false)).Text;
+
     // ---- Identity -------------------------------------------------------------------
 
     /// <summary>The node's private key. Throws <see cref="MeshCoreCommandException"/> (disabled) on builds without export.</summary>

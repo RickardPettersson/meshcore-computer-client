@@ -31,6 +31,10 @@ public sealed record TelemetryResponsePush(PublicKeyPrefix Sender, IReadOnlyList
 public sealed record TraceDataPush(uint Tag, uint AuthCode, int HashSize, IReadOnlyList<string> HopHashes, IReadOnlyList<double> HopSnrs, double FinalSnr)
     : MeshFrame((byte)PushCode.TraceData);
 
+/// <summary><c>RESP_CODE_CLI_REPLY</c>: the companion's answer to <c>CMD_RUN_CLI_COMMAND</c>
+/// (often starts with <c>"&gt; "</c>, or says <c>"Unknown command"</c>).</summary>
+public sealed record CliReply(string Text) : MeshFrame((byte)ResponseCode.CliReply);
+
 /// <summary><c>PUSH_CODE_CONTACT_DELETED</c>: the radio overwrote its oldest contact to make room.</summary>
 public sealed record ContactDeletedPush(PublicKey PublicKey) : MeshFrame((byte)PushCode.ContactDeleted);
 

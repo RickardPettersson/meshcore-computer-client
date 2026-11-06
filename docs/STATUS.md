@@ -93,6 +93,7 @@ None of them need a radio: they use a scripted fake radio, a local TCP server, i
   You can now rename it under Device → Node settings.
 - **HTTPS uses the app's own certificate authority.** Phones install it once from `/Account/Certificate`, or accept a browser warning. Installing it on a real phone hasn't been tried yet; the chain was verified with a strict TLS client.
 - **Installing as an app** (service worker, offline page) needs the HTTPS address on phones. Not yet verified on a real phone.
+- **GitHub Actions release** (`.github/workflows/release.yml`) hasn't run on GitHub yet. The same packaging script was run locally, and its zip worked with no .NET available.
 - **The service install scripts haven't been run here.** They need Administrator rights (or sudo) and change the system. The app's service support itself is in place (`UseWindowsService`, `UseSystemd`, app-folder paths).
 - **Remote repeater features haven't been tried over the air yet.** Your radio knows 6 repeaters and a room server, all with unknown routes. Status, telemetry and login send packets, so they're left for you to try. Trace needs a learned route first.
 - **Live connections stay open after a user is disabled** until they reload. API calls are refused immediately; the open SignalR connection only carries notifications.

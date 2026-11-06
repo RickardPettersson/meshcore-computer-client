@@ -6,13 +6,25 @@ responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
 **Status:** all 8 planned phases done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
 
-**Installing it for real?** Follow the [setup guide](docs/SETUP.md): build a single file, set it up, add HTTPS for phones, and run it as a service.
+**Installing it for real?** On Windows, download the zip from [Releases](https://github.com/RickardPettersson/meshcore-computer-client/releases):
+no .NET needed. Then follow the [setup guide](docs/SETUP.md) to set it up, add HTTPS for phones, and run it as a service.
+
+**Radio:** a Heltec V4 over WiFi works well. [docs/HELTEC-V4-WIFI.md](docs/HELTEC-V4-WIFI.md) shows how to build and flash the WiFi companion firmware.
+
+**Releases** are built by GitHub Actions ([release.yml](.github/workflows/release.yml)) when a version tag is pushed:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The same build can be run by hand: `./build/package-windows.ps1 -Version 1.0.0` gives `artifacts/release/*.zip`.
 
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ## Requirements
 
-- .NET 10 SDK
+- .NET 10 SDK to build or develop. The released Windows zip needs nothing installed.
 - A MeshCore companion radio running the **WiFi** or **USB** companion firmware (the BLE build is not supported)
 
 ## Run (development)
@@ -87,7 +99,8 @@ dotnet run --project src/MeshCore.Host -- --MeshCore:Connection=simulator --Mesh
 dotnet run --project tools/MeshCore.Cli -- info --connect 192.168.1.212
 ```
 
-The CLI commands are `ports`, `info`, `contacts`, `channels`, `messages`, `listen`, `send`, `send-channel` and `advert`.
+The CLI commands are `ports`, `info`, `contacts`, `channels`, `messages`, `listen`, `send`, `send-channel`, `advert` and `cli`.
+`cli` runs a command on the radio itself (firmware v14+), e.g. `cli get wifi.ip` or `cli set wifi.ssid MyNetwork`.
 
 ## Develop
 

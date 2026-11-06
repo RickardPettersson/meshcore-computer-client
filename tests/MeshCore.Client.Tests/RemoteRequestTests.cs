@@ -112,3 +112,17 @@ public class RemoteRequestTests
 
     private static byte[] U16(ushort v) => [(byte)v, (byte)(v >> 8)];
 }
+
+public class CompanionCliClientTests
+{
+    [Fact]
+    public async Task Run_cli_command_returns_the_reply_text()
+    {
+        var radio = new FakeRadio().WithHandshake().On(0x42, cmd => [FakeRadio.Concat([0x1D], System.Text.Encoding.UTF8.GetBytes("> connected"))]);
+        await using var client = new MeshCoreClient(radio, new MeshCoreClientOptions { CommandTimeout = TimeSpan.FromSeconds(1) });
+        await client.ConnectAsync();
+
+        Assert.Equal("> connected", await client.RunCliCommandAsync("get wifi.status"));
+        Assert.Equal("get wifi.status", System.Text.Encoding.UTF8.GetString(radio.Received.Last()[1..]));
+    }
+}

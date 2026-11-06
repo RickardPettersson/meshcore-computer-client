@@ -73,6 +73,7 @@ public static class FrameParser
         (byte)ResponseCode.TuningParams => new TuningParams(r.ReadUInt32() / 1000.0, r.ReadUInt32() / 1000.0),
         (byte)ResponseCode.ExportContact => new ExportedContact(r.ReadBytes(r.Remaining).ToArray()),
         (byte)ResponseCode.PrivateKey => new PrivateKey(r.ReadBytes(64).ToArray()),
+        (byte)ResponseCode.CliReply => new CliReply(r.ReadRemainingString()),
         _ => null,
     };
 

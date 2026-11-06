@@ -153,6 +153,12 @@ Checked against `handleCmdFrame()` in the pinned `MyMesh.cpp` (lines 1266–1830
 | `EXPORT_PRIVATE_KEY` 0x17 | — | `PRIVATE_KEY` 0x0E: `[1..64]`, or `DISABLED` 0x0F (`ENABLE_PRIVATE_KEY_EXPORT`) |
 | `IMPORT_PRIVATE_KEY` 0x18 | `[1..64]` | `OK`, `ERR` 6 (invalid key), or `DISABLED` |
 | `SEND_TXT_MSG` 0x02 with `txt_type` 1 (CLI) | as a direct message | `SENT` with **expected_ack 0**: CLI commands are never ACKed. The reply arrives as a contact message with `txt_type` 1. |
+| `RUN_CLI_COMMAND` 0x42 (v14+) | `[1..]` command text, run **on the companion itself** (`handleCommand`), e.g. `get wifi.ip`, `set wifi.ssid …`, `set name …` | `CLI_REPLY` 0x1D: `[1..]` reply text (`"> …"` or `"Unknown command"`) |
+
+**Companion CLI WiFi commands** (builds with `ENABLE_WIFI_INTERFACE`; the stored values override the compiled `WIFI_SSID`/`WIFI_PWD`
+and apply after a reboot): `get/set wifi.ssid`, `set wifi.pwd`, `get wifi.pwd` (prints it in plain text), `set wifi.clear`,
+`get/set wifi.enabled`, `get wifi.status`, `get wifi.ip`. `wifi_enabled` defaults to 1, and WiFi only starts when an SSID is set
+(`examples/companion_radio/main.cpp`, `NodePrefs.h`).
 
 | Push | Layout |
 |---|---|

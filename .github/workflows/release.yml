@@ -1,0 +1,84 @@
+# Builds the Windows release (single-file, self-contained: no .NET install needed to run it).
+#
+#   Push a tag like v1.0.0  →  tests, build, and a GitHub Release with the zip attached.
+#   Run it manually (Actions tab → "Release (Windows)" → Run workflow)  →  same build, zip kept as a
+#   workflow artifact for 14 days, no release created.
+name: Release (Windows)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version for a manual build (e.g. 1.0.0-test.1)"
+        required: true
+        default: "0.0.0-dev"
+
+permissions:
+  contents: write # create the release and upload its files
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Work out the version
+        id: version
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $v = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME -replace '^v', '' } else { $env:INPUT_VERSION }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "prerelease=$([bool]($v -match '-'))".ToLowerInvariant() >> $env:GITHUB_OUTPUT
+          Write-Host "Version $v"
+
+      - name: Test, publish and package
+        id: package
+        shell: pwsh
+        run: ./build/package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+
+      - name: Keep the zip as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $notes = @"
+          ## Windows (x64)
+
+          Download **${{ steps.package.outputs.name }}.zip**, unzip it, edit ``appsettings.json`` (``MeshCore:Connection``) and run ``MeshCore.Host.exe``.
+          No .NET install needed. Then open http://localhost:5080.
+
+          - Full guide: ``docs/SETUP.md`` in the zip
+          - Heltec V4 WiFi firmware: ``docs/HELTEC-V4-WIFI.md``
+          - Run as a Windows service: ``service/install-windows-service.ps1`` (as Administrator)
+          - Verify the download: compare with the ``.sha256`` file (``Get-FileHash <zip> -Algorithm SHA256``)
+          "@
+          $flags = @('--title', "MeshCore Computer Client $tag", '--notes', $notes, '--generate-notes')
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
+          gh release create $tag artifacts/release/*.zip artifacts/release/*.sha256 @flags

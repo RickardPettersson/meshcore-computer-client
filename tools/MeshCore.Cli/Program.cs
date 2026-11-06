@@ -27,6 +27,8 @@ const string Usage = """
       send <name|key> <text>      Send a direct message to a contact
       send-channel <idx> <text>   Send to a channel
       advert [--flood]            Broadcast our advert
+      cli <command...>            Run a CLI command on the radio itself (firmware v14+),
+                                  e.g. cli get wifi.ip, cli set wifi.ssid MyNetwork, cli reboot
 
     """;
 
@@ -107,6 +109,16 @@ try
         case "send-channel" when rest.Count >= 2 && byte.TryParse(rest[0], CultureInfo.InvariantCulture, out var idx):
             await client.SendChannelTextMessageAsync(idx, string.Join(' ', rest.Skip(1)), cts.Token);
             Console.WriteLine($"Sent to channel {idx}.");
+            break;
+        case "cli" when rest.Count >= 1:
+            var cliCommand = string.Join(' ', rest);
+            if (cliCommand.Trim() == "reboot")
+            {
+                await client.RebootAsync(cts.Token); // the radio restarts without replying
+                Console.WriteLine("Reboot sent.");
+                break;
+            }
+            Console.WriteLine(await client.RunCliCommandAsync(cliCommand, cts.Token));
             break;
         case "advert":
             await client.SendAdvertAsync(flood, cts.Token);

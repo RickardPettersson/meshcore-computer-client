@@ -6,12 +6,19 @@ from phones and desktops on your network.
 ## 1. What you need
 
 - A **MeshCore companion radio** running the **WiFi** or **USB** companion firmware. The BLE build doesn't work.
-  - **WiFi:** note the radio's IP address and port (default 5000), e.g. `192.168.1.212:5000`.
+  - **WiFi:** note the radio's IP address and port (default 5000), e.g. `192.168.1.212:5000`. Heltec V4: see [HELTEC-V4-WIFI.md](HELTEC-V4-WIFI.md) to build and flash the WiFi firmware.
   - **USB:** plug it in; the app finds it by itself, or you can name the port (`COM11`, `/dev/ttyACM0`).
 - A computer on the same network: Windows 10/11, Linux, or a Raspberry Pi (64-bit OS).
 - To **build** the app: the .NET 10 SDK. **Running** a published build needs no .NET install.
 
-## 2. Build it
+## 2. Get it
+
+**Windows, easiest:** download the latest `MeshCoreComputerClient-<version>-win-x64.zip` from the
+[Releases page](https://github.com/RickardPettersson/meshcore-computer-client/releases) and unzip it, e.g. to `C:\MeshCore`.
+It's self-contained: **no .NET install needed**. It includes `meshcore-cli.exe`, the service scripts and these docs.
+To check the download, compare `Get-FileHash <zip> -Algorithm SHA256` with the `.sha256` file next to it.
+
+**Or build it yourself** (any platform, needs the .NET 10 SDK):
 
 ```bash
 git clone https://github.com/RickardPettersson/meshcore-computer-client.git

@@ -141,6 +141,16 @@ public static partial class Commands
         return new FrameWriter().Code(CommandCode.SendTracePath).UInt32(tag).UInt32(authCode).Byte(flags).Bytes(path).ToArray();
     }
 
+    /// <summary>
+    /// Runs a CLI command on the companion radio itself (firmware v14+), e.g. <c>get wifi.ip</c> or
+    /// <c>set wifi.ssid MyNetwork</c>. Reply: <see cref="Frames.CliReply"/>.
+    /// </summary>
+    public static byte[] RunCliCommand(string command)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(command);
+        return new FrameWriter().Code(CommandCode.RunCliCommand).Text(command.Trim()).ToArray();
+    }
+
     // ---- Identity -------------------------------------------------------------------
 
     /// <summary>Reply: <see cref="Frames.PrivateKey"/>, or <see cref="Frames.DisabledResponse"/> on builds without key export.</summary>
