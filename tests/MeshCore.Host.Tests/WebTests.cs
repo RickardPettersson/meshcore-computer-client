@@ -55,7 +55,7 @@ internal sealed partial class Browser(ApiFactory app)
     private static partial Regex AntiforgeryRegex();
 }
 
-public class WebTests
+public partial class WebTests
 {
     /// <summary>Redirect target as path + query, whether the server sent it absolute or relative.</summary>
     private static string? Location(HttpResponseMessage r) => r.Headers.Location is { } l
@@ -247,4 +247,49 @@ public class WebTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Contains("That page doesn&#x27;t exist", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
+    /// <summary>
+    /// The API and the website have controllers with the same names. Website links and forms must still go to the
+    /// website: a form for Device/Advert once came out as /api/v1/device/advert and failed with 401.
+    /// </summary>
+    [Fact]
+    public async Task No_website_page_links_or_posts_to_the_api()
+    {
+        using var app = new ApiFactory();
+        var browser = new Browser(app);
+        await app.WaitForRadioAsync();
+        await browser.SetupAsync();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var queue = new Queue<string>(["/"]);
+        var targets = new List<(string Page, string Target)>();
+        while (queue.Count > 0 && seen.Count < 80)
+        {
+            var page = queue.Dequeue();
+            if (!seen.Add(page))
+            {
+                continue;
+            }
+            var response = await browser.GetAsync(page);
+            if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentType?.MediaType != "text/html")
+            {
+                continue;
+            }
+            foreach (Match m in LinkRegex().Matches(await response.Content.ReadAsStringAsync()))
+            {
+                var target = WebUtility.HtmlDecode(m.Groups[2].Value);
+                targets.Add((page, target));
+                if (m.Groups[1].Value == "href" && target.StartsWith('/') && !target.StartsWith("//", StringComparison.Ordinal))
+                {
+                    queue.Enqueue(target.Split('#')[0]);
+                }
+            }
+        }
+
+        Assert.True(seen.Count > 8, $"Only crawled {seen.Count} pages.");
+        Assert.Empty(targets.Where(t => t.Target.StartsWith("/api", StringComparison.OrdinalIgnoreCase)).Select(t => $"{t.Page} → {t.Target}").Distinct());
+        Assert.Contains(targets, t => t.Target.StartsWith("/Device/Advert", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [GeneratedRegex("""<(?:a|form)\s[^>]*?\b(href|action)="([^"]*)""",RegexOptions.IgnoreCase)]
+    private static partial Regex LinkRegex();
 }

@@ -9,7 +9,7 @@ public static class ApiSetup
 {
     public static IServiceCollection AddMeshCoreApi(this IServiceCollection services)
     {
-        services.AddControllers()
+        services.AddControllers(o => o.Conventions.Add(new ApiAreaConvention()))
             .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.AddProblemDetails();
@@ -41,6 +41,25 @@ public static class ApiSetup
                 .AddPreferredSecuritySchemes("Bearer"))
             .AllowAnonymous();
         return app;
+    }
+
+    /// <summary>
+    /// Puts every API controller in the <c>api</c> area. The API and the website have controllers with the same names
+    /// (Device, Contacts, Channels…), so without this a website form for Device/Advert was generated as
+    /// <c>/api/v1/device/advert</c>. URLs don't change: the area only stops website links (which have no area) from matching
+    /// API routes, while links made inside the API (CreatedAtAction) still do.
+    /// </summary>
+    internal sealed class ApiAreaConvention : Microsoft.AspNetCore.Mvc.ApplicationModels.IControllerModelConvention
+    {
+        public const string Area = "api";
+
+        public void Apply(Microsoft.AspNetCore.Mvc.ApplicationModels.ControllerModel controller)
+        {
+            if (controller.ControllerType.Namespace == typeof(ApiSetup).Namespace)
+            {
+                controller.RouteValues["area"] = Area;
+            }
+        }
     }
 
     private sealed class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer

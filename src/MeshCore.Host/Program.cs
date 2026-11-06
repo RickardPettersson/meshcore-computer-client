@@ -83,6 +83,16 @@ app.UseWhen(http => !IsApi(http), web =>
 app.UseMeshCoreSecurityHeaders();
 app.UseMeshCoreHttpsRedirect(https, separatePorts ? webPort : null);
 app.UseStaticFiles();
+if (separatePorts)
+{
+    // The API isn't served on the website's ports. Say so, instead of the 401 the fallback auth policy would give.
+    app.UseWhen(http => IsApi(http) && http.Connection.LocalPort != apiPort, notHere => notHere.Run(http =>
+        Results.Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "The REST API isn't on this port",
+            detail: $"The website doesn't serve /api. Use the API port ({apiPort}, this computer only) with a bearer token, "
+                  + "or the website's own pages, e.g. Device → Flood advert.").ExecuteAsync(http)));
+}
 app.UseRouting(); // Explicit, after the status-code pages, so re-executed error pages are routed.
 app.UseMeshCoreSetupGate();
 app.UseAuthentication();
