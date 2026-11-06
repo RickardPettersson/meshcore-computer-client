@@ -46,6 +46,9 @@ Write-Host "==> Stage $name"
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
 $app = Join-Path $root "artifacts/publish/win-x64"
+foreach ($exe in "$app/MeshCore.Host.exe", "artifacts/publish/cli-win-x64/meshcore-cli.exe") {
+    if (-not (Test-Path $exe)) { throw "Publish produced no $exe (missing publish profile?)" }
+}
 Copy-Item "$app/*" $stage -Recurse -Exclude "data", "appsettings.Development.json", "web.config"
 Copy-Item "artifacts/publish/cli-win-x64/meshcore-cli.exe" $stage
 New-Item -ItemType Directory -Force -Path "$stage/service" | Out-Null
