@@ -38,6 +38,16 @@ internal sealed partial class Browser(ApiFactory app)
         return await _http.SendAsync(request);
     }
 
+    /// <summary>Posts a multipart form (e.g. a file upload) with the antiforgery token from <paramref name="formPage"/>.</summary>
+    public async Task<HttpResponseMessage> UploadAsync(string formPage, string action, MultipartFormDataContent form)
+    {
+        var token = AntiforgeryRegex().Match(await PageAsync(formPage)).Groups[1].Value;
+        form.Add(new StringContent(token), "__RequestVerificationToken");
+        using var request = new HttpRequestMessage(HttpMethod.Post, action) { Content = form };
+        request.Headers.Add("X-Requested-With", "fetch");
+        return await _http.SendAsync(request);
+    }
+
     public Task<HttpResponseMessage> PostWithoutTokenAsync(string action, params (string Name, string Value)[] fields) =>
         _http.PostAsync(action, new FormUrlEncodedContent(fields.Select(f => KeyValuePair.Create(f.Name, f.Value))));
 

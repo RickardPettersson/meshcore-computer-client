@@ -190,6 +190,26 @@ public sealed class MeshApiClient(HttpClient http)
     public Task<MessageResponse> SendChannelAsync(byte channel, string text, CancellationToken ct = default) =>
         PostAsync<MessageResponse>("messages/channel", new SendChannelRequest(channel, text), ct);
 
+    // ---- Images -------------------------------------------------------------------
+
+    public Task<ImageSettingsResponse> ImageSettingsAsync(CancellationToken ct = default) => GetAsync<ImageSettingsResponse>("images/settings", ct);
+
+    /// <summary>Uploads a photo through the API (which shrinks it, strips its metadata and sends it to the image host).</summary>
+    public async Task<ImageUploadResponse> UploadImageAsync(Stream file, string fileName, string? contentType, string? expires, CancellationToken ct = default)
+    {
+        using var form = new MultipartFormDataContent();
+        var content = new StreamContent(file);
+        content.Headers.ContentType = MediaTypeHeaderValue.TryParse(contentType, out var type) ? type : new MediaTypeHeaderValue("application/octet-stream");
+        form.Add(content, "file", string.IsNullOrWhiteSpace(fileName) ? "image" : fileName);
+        if (!string.IsNullOrWhiteSpace(expires))
+        {
+            form.Add(new StringContent(expires), "expires");
+        }
+        using var request = new HttpRequestMessage(HttpMethod.Post, "images") { Content = form };
+        using var response = await SendRawAsync(request, ct);
+        return (await response.Content.ReadFromJsonAsync<ImageUploadResponse>(Json, ct))!;
+    }
+
     // ---- Plumbing ---------------------------------------------------------------
 
     private Task<T> GetAsync<T>(string path, CancellationToken ct) => SendAsync<T>(HttpMethod.Get, path, null, ct);
@@ -214,7 +234,11 @@ public sealed class MeshApiClient(HttpClient http)
         {
             request.Content = JsonContent.Create(body, body.GetType(), options: Json);
         }
+        return await SendRawAsync(request, ct);
+    }
 
+    private async Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request, CancellationToken ct)
+    {
         var response = await http.SendAsync(request, ct);
         if (response.IsSuccessStatusCode)
         {

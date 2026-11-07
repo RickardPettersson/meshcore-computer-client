@@ -196,7 +196,7 @@ public sealed class MessagesController(MeshApiClient api) : WebController
         var limit = ProtocolLimits.MaxChannelTextBytes(device.Node?.Name ?? "");
         var senders = ChatViewModel.SendersFrom(await api.ContactsAsync(ct: ct));
         return View("Chat", new ChatViewModel(key, channel.Name, $"Channel {id}", null, id, messages.Reverse().ToList(), await UserNamesAsync(ct), limit,
-            TempData["Draft"] as string, SenderContacts: senders));
+            TempData["Draft"] as string, SenderContacts: senders, Images: await api.ImageSettingsAsync(ct)));
     }
 
     /// <summary>
@@ -231,7 +231,8 @@ public sealed class MessagesController(MeshApiClient api) : WebController
         await MarkNewestReadAsync(key, messages, before, ct);
         var subtitle = contact.Hops is { } h ? $"{h} hop(s)" : "route unknown (floods)";
         var cli = IsAdmin && contact.Type is AdvertType.Repeater or AdvertType.Room;
-        return View("Chat", new ChatViewModel(key, contact.Name, subtitle, contact.PublicKey, null, messages.Reverse().ToList(), await UserNamesAsync(ct), ProtocolLimits.MaxTextBytes, TempData["Draft"] as string, cli));
+        return View("Chat", new ChatViewModel(key, contact.Name, subtitle, contact.PublicKey, null, messages.Reverse().ToList(), await UserNamesAsync(ct),
+            ProtocolLimits.MaxTextBytes, TempData["Draft"] as string, cli, Images: await api.ImageSettingsAsync(ct)));
     }
 
     /// <summary>
@@ -264,6 +265,36 @@ public sealed class MessagesController(MeshApiClient api) : WebController
             FlashError(ex.Message);
             TempData["Draft"] = text; // Don't lose what they typed.
             return contact is not null ? RedirectToAction(nameof(Direct), new { id = contact }) : RedirectToAction(nameof(Channel), new { id = channel ?? 0 });
+        }
+    }
+
+    /// <summary>
+    /// Called by the chat page's image button: uploads the photo through the API and answers with its short link,
+    /// which the page puts into the message box. Always JSON (the button needs JavaScript).
+    /// </summary>
+    [HttpPost]
+    [RequestSizeLimit(Images.ImageUploadOptions.MaxRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = Images.ImageUploadOptions.MaxRequestBytes)]
+    public async Task<IActionResult> UploadImage(IFormFile? file, string? expires, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { error = "Choose an image first." });
+        }
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var uploaded = await api.UploadImageAsync(stream, file.FileName, file.ContentType, expires, ct);
+            return Json(uploaded, MeshApiClient.Json);
+        }
+        catch (ApiException ex) when ((int)ex.Status is >= 400 and < 600)
+        {
+            var message = ex.Status == HttpStatusCode.TooManyRequests ? "Too many uploads. Wait a few minutes and try again." : ex.Message;
+            return StatusCode((int)ex.Status, new { error = message });
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return StatusCode(StatusCodes.Status504GatewayTimeout, new { error = "The upload took too long. Try a smaller image or try again." });
         }
     }
 

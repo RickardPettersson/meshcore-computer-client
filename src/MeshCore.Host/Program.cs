@@ -2,6 +2,7 @@ using MeshCore.Data;
 using MeshCore.Host.Api;
 using MeshCore.Host.Auth;
 using MeshCore.Host.Hosting;
+using MeshCore.Host.Images;
 using MeshCore.Host.Radio;
 using MeshCore.Host.Realtime;
 using MeshCore.Host.Web;
@@ -49,6 +50,7 @@ if (consoleChat)
 // ---- Auth & API ---------------------------------------------------------------
 builder.Services.AddMeshCoreAuth(builder.Configuration, dataDirectory);
 builder.Services.AddMeshCoreApi();
+builder.Services.AddMeshCoreImages(builder.Configuration);
 
 // ---- Website (MVC Backend-for-Frontend over the API) -------------------------
 builder.Services.AddMeshCoreWeb(builder.Configuration);

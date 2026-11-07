@@ -1,6 +1,6 @@
 # Project Status
 
-*Last updated: 2026-11-05 · All 8 phases done*
+*Last updated: 2026-11-07 · All 8 phases done, plus releases 1.0.x and photo sharing*
 
 This page shows how far the project has come: what works today, what has been tested on real hardware,
 and what's next. The full design is in [PLAN.md](PLAN.md), and the protocol reference is in [PROTOCOL.md](PROTOCOL.md).
@@ -28,6 +28,10 @@ Phase 8  Polish + packaging          ██████████  done
 | 6 | Live chat UI | ✅ Done | SignalR live updates, delivery ticks that update by themselves, per-user unread badges, toasts, sending without reload, catch-up after reconnect, PWA manifest + offline page, radio simulator |
 | 7 | Advanced features | ✅ Done | Node settings (name, location, LoRa, TX power, tuning, preferences), contact cards (export/import), favourites, rename, heard-nodes list, repeater login/status/telemetry/trace, remote CLI in the chat, private key backup/restore |
 | 8 | Polish | ✅ Done | HTTPS for phones (own local CA + site certificate, help page to install it), daily log files, Windows service / systemd, single-file builds for Windows, Linux and Raspberry Pi, setup guide |
+
+**Since the 8 phases:** Windows releases built by GitHub Actions (no .NET needed), CI with test failures as annotations,
+the Heltec V4 WiFi guide, tap a channel sender to message them privately (with a help page for senders who aren't contacts yet),
+and photo sharing: shrink, strip EXIF/GPS, upload to Litterbox/Catbox and send the short link.
 
 ## What works today
 

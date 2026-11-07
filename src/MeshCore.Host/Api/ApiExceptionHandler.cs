@@ -24,6 +24,7 @@ internal sealed partial class ApiExceptionHandler(IProblemDetailsService problem
             AuthException { Error: AuthError.Forbidden } => (StatusCodes.Status403Forbidden, "Not allowed"),
             ArgumentException => (StatusCodes.Status400BadRequest, "Invalid request"),
             FormatException => (StatusCodes.Status400BadRequest, "Invalid request"),
+            Images.ImageHostException => (StatusCodes.Status502BadGateway, "Image host failed"),
             MeshCoreDisconnectedException => (StatusCodes.Status503ServiceUnavailable, "Radio not connected"),
             MeshCoreTimeoutException => (StatusCodes.Status504GatewayTimeout, "Radio did not answer"),
             MeshCoreCommandException { IsDisabled: true } => (StatusCodes.Status501NotImplemented, "Disabled on this radio"),

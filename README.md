@@ -50,6 +50,11 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
 5. In a channel, tap a sender's name to message them privately. That works when they're in your contacts under that exact name
    (channel messages only carry the name). Other names open a page explaining how to get them into your contacts:
    they send an advert, or you swap contact cards. It also has a button to send your own advert.
+6. **Share a photo** with the 🖼 button next to the message box, or paste an image into it. The app shrinks the photo, removes
+   its EXIF data (including GPS location) and uploads it to [Litterbox](https://litterbox.catbox.moe) (deleted after
+   1 hour to 3 days) or [Catbox](https://catbox.moe) (kept), then puts the short link (~36 characters) in your message.
+   Uploads aren't listed anywhere, but **anyone with the link can open it**, and messages in the Public channel can be read by
+   everyone on the mesh. Choose how long photos are kept under the message box. See [setup](docs/SETUP.md#images).
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
 For phones, use **HTTPS on port 5443**. The app makes its own certificate; open `/Account/Certificate` on the phone to install it (see the [setup guide](docs/SETUP.md#5-phones-https-and-install-as-app)).
@@ -71,6 +76,8 @@ curl -X POST http://127.0.0.1:5081/api/v1/auth/setup -H "content-type: applicati
 
 Send the returned `accessToken` as `Authorization: Bearer <token>`. Later sign-ins use `POST /api/v1/auth/token`.
 Admins add more users with `POST /api/v1/users`. Each new user must change their temporary password at first sign-in.
+
+**Images:** `POST /api/v1/images` (multipart: `file`, `expires` = `1h`/`12h`/`24h`/`72h`/`keep`) returns `{ url, expiresAt, … }`.
 
 **Live updates:** connect a SignalR client to `http://127.0.0.1:5081/api/v1/hub`. Send the token as a bearer header,
 or as `?access_token=` for WebSockets. It sends `message` (new message or delivery status), `radio`, `contacts` and `channels` events.

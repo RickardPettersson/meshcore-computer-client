@@ -35,7 +35,8 @@ public static class WebSetup
         services.AddHttpClient<MeshApiClient>(c =>
             {
                 c.BaseAddress = new Uri(apiBase.TrimEnd('/') + "/api/v1/");
-                c.Timeout = TimeSpan.FromSeconds(30);
+                // Radio calls time out sooner on the API side; this mostly bounds image uploads (shrink + upload).
+                c.Timeout = TimeSpan.FromSeconds(90);
             })
             .AddHttpMessageHandler<ApiTokenHandler>();
 

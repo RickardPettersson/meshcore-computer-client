@@ -91,7 +91,9 @@
     </div>
 </template>
 
-<form class="app-composer border-top" asp-action="Send" method="post" id="composer">
+@{ var images = Model.Images is { Enabled: true } ? Model.Images : null; }
+<form class="app-composer border-top" asp-action="Send" method="post" id="composer"
+      data-upload-url="@(images is null ? "" : Url.Action("UploadImage", "Messages"))" data-max-upload="@(images?.MaxUploadBytes ?? 0)">
     @if (Model.ContactKey is { } key)
     {
         <input type="hidden" name="contact" value="@key">
@@ -102,6 +104,14 @@
     }
     <div class="alert alert-danger py-2 small d-none mb-2" role="alert" data-send-error></div>
     <div class="d-flex gap-2 align-items-end">
+        @if (images is not null)
+        {
+            @* Shown by chat.js (needs JavaScript). *@
+            <button type="button" class="btn btn-outline-secondary d-none" data-image-button aria-label="Share a photo" title="Share a photo (upload and insert its link)">
+                <i class="bi bi-image" aria-hidden="true"></i>
+            </button>
+            <input type="file" class="d-none" accept="image/*" data-image-input aria-hidden="true" tabindex="-1">
+        }
         <label for="text" class="visually-hidden">Message</label>
         <textarea id="text" name="text" class="form-control" rows="1" required placeholder="Message @Model.Title"
                   data-byte-limit="@Model.MaxBytes" data-counter="byte-count" autocomplete="off">@Model.Draft</textarea>
@@ -115,7 +125,20 @@
                 <label class="form-check-label" for="cli">CLI command <span class="d-none d-sm-inline">(needs an admin login on the Contacts page)</span></label>
             </div>
         }
-        <span class="me-auto">@(isChannel ? "Channel messages aren't confirmed." : Model.CliAvailable ? "" : "Delivery is confirmed by the recipient: ✓ sent, ✓✓ delivered.")</span>
+        <span class="me-auto" data-composer-hint>@(isChannel ? "Channel messages aren't confirmed." : Model.CliAvailable ? "" : "Delivery is confirmed by the recipient: ✓ sent, ✓✓ delivered.")</span>
+        @if (images is not null)
+        {
+            <span class="d-none align-items-center gap-1" data-image-options>
+                <label for="image-expiry"><i class="bi bi-image" aria-hidden="true"></i> photos kept</label>
+                <select id="image-expiry" class="form-select form-select-sm py-0 w-auto" data-image-expiry data-default="@images.DefaultExpiry"
+                        title="How long a shared photo stays online. Anyone with the link can open it; it isn't listed anywhere.">
+                    @foreach (var e in MeshCore.Host.Images.ImageExpiries.All)
+                    {
+                        <option value="@e.Value" selected="@(e.Value == images.DefaultExpiry)">@e.Label</option>
+                    }
+                </select>
+            </span>
+        }
         <span id="byte-count">0 / @Model.MaxBytes</span>
     </div>
 </form>

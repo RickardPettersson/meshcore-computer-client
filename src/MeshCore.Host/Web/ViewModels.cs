@@ -105,7 +105,7 @@ public sealed record ChatViewModel(
     string Key,
     string Title, string? Subtitle, string? ContactKey, byte? ChannelIndex, IReadOnlyList<MessageResponse> Messages,
     IReadOnlyDictionary<string, string> UserNames, int MaxBytes, string? Draft, bool CliAvailable = false,
-    IReadOnlyDictionary<string, string>? SenderContacts = null)
+    IReadOnlyDictionary<string, string>? SenderContacts = null, ImageSettingsResponse? Images = null)
 {
     /// <summary>
     /// Channel messages only carry the sender's name, so a private chat is possible when exactly one contact has that

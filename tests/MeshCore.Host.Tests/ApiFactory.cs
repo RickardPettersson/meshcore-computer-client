@@ -28,6 +28,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     internal FakeRadio? Radio { get; init; } = DefaultRadio();
 
+    /// <summary>Stands in for catbox.moe / litterbox.catbox.moe. Default: answers every upload with a fixed link.</summary>
+    internal FakeImageHost ImageHost { get; init; } = new();
+
+    /// <summary>Extra settings, e.g. <c>("Images:Enabled", "false")</c>.</summary>
+    internal (string Key, string Value)[] Settings { get; init; } = [];
+
     /// <summary>Use the built-in radio simulator instead of <see cref="Radio"/> (no chatter during tests).</summary>
     internal bool UseSimulator { get; init; }
 
@@ -49,6 +55,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Web:SeparatePorts", "false"); // TestServer has no ports
         builder.UseSetting("Web:Https:Enabled", "false"); // no certificates needed in memory
         builder.UseSetting("Web:ApiBaseUrl", "http://localhost");
+        foreach (var (key, value) in Settings)
+        {
+            builder.UseSetting(key, value);
+        }
         builder.ConfigureLogging(l => l.SetMinimumLevel(LogLevel.Warning));
         builder.ConfigureServices(services =>
         {
@@ -65,6 +75,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             // The website's API client calls the in-memory server instead of the network.
             services.AddHttpClient<Web.MeshApiClient>()
                 .ConfigurePrimaryHttpMessageHandler(sp => ((TestServer)sp.GetRequiredService<IServer>()).CreateHandler());
+            // Never upload to the real image host from tests.
+            services.AddHttpClient<Images.ImageHostClient>().ConfigurePrimaryHttpMessageHandler(() => ImageHost);
         });
     }
 
@@ -130,5 +142,43 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         public ValueTask SendAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>A fake image host: records each upload (endpoint and form fields) and answers like Catbox does.</summary>
+internal sealed class FakeImageHost : HttpMessageHandler
+{
+    public List<(Uri Endpoint, Dictionary<string, string> Fields, byte[] File)> Uploads { get; } = [];
+
+    /// <summary>Status and body to answer with; the body is the link on success.</summary>
+    public Func<Uri, (System.Net.HttpStatusCode Status, string Body)> Respond { get; set; } =
+        endpoint => (System.Net.HttpStatusCode.OK, endpoint.Host.StartsWith("litterbox", StringComparison.Ordinal)
+            ? "https://litter.catbox.moe/abc123.jpg" : "https://files.catbox.moe/xyz789.jpg");
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var fields = new Dictionary<string, string>();
+        byte[] file = [];
+        if (request.Content is MultipartFormDataContent form)
+        {
+            foreach (var part in form)
+            {
+                var name = part.Headers.ContentDisposition?.Name?.Trim('"') ?? "";
+                if (part.Headers.ContentDisposition?.FileName is not null)
+                {
+                    file = await part.ReadAsByteArrayAsync(cancellationToken);
+                }
+                else
+                {
+                    fields[name] = await part.ReadAsStringAsync(cancellationToken);
+                }
+            }
+        }
+        lock (Uploads)
+        {
+            Uploads.Add((request.RequestUri!, fields, file));
+        }
+        var (status, body) = Respond(request.RequestUri!);
+        return new HttpResponseMessage(status) { Content = new StringContent(body) };
     }
 }

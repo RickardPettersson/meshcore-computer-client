@@ -40,6 +40,7 @@ Edit `appsettings.json` in that folder:
 | `Web:Https` | Website over HTTPS: `Enabled` (default on), `Port` (5443), `RedirectHttp`, and optionally your own `CertificatePath` / `CertificatePassword` (.pfx) |
 | `Kestrel:Endpoints:Api:Url` | REST API, default `http://127.0.0.1:5081` (this computer only) |
 | `MeshCore:DataDirectory` | Where the database, users, keys, certificates and logs go (default `data` next to the app) |
+| `Images` | Photo sharing in chats: `Enabled`, `DefaultExpiry` (`1h`, `12h`, `24h`, `72h` or `keep`), `MaxDimension` (1600 px). See [Images](#images). |
 | `Serilog:MinimumLevel` | Log detail (`Information` by default; set `Override:MeshCore` to `Debug` when troubleshooting) |
 
 You can also override any setting on the command line, e.g. `MeshCore.Host.exe --MeshCore:Connection=COM7`.
@@ -95,6 +96,22 @@ sudo cp tools/service/meshcore.service /etc/systemd/system/
 sudo systemctl enable --now meshcore
 journalctl -u meshcore -f                  # or /opt/meshcore/data/logs
 ```
+
+## Images
+
+The 🖼 button in a chat uploads a photo and puts its link in the message. MeshCore messages are at most 160 bytes, so the
+photo itself can't travel over the radio; the link does, and the recipient opens it on a phone with internet.
+
+- **Where it goes:** [Litterbox](https://litterbox.catbox.moe) for 1 hour to 3 days (then deleted), or [Catbox](https://catbox.moe)
+  for "keep" (deleted after 2 years without views). Both are free and need no account. Links look like
+  `https://litter.catbox.moe/a1b2c3.jpg`.
+- **What's sent:** the app shrinks the photo to 1600 px, turns it upright and re-encodes it as a JPEG. **No metadata is sent**:
+  EXIF with GPS location and camera details, IPTC and XMP are all removed. Nothing is stored on this computer.
+- **Who can see it:** uploads aren't listed or searchable, but anyone with the link can open it. Short random links can be
+  guessed by scanners, and the Public channel can be read by everyone on the mesh. For anything private, use a short expiry and a private
+  message or private channel.
+- **Rules:** the hosts' own rules apply (for example, no commercial use of Catbox). Each user can upload 20 photos per 10 minutes.
+- **Turn it off:** set `Images:Enabled` to `false`.
 
 ## 7. Back up, move, update
 

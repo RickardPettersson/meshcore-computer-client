@@ -164,6 +164,8 @@
         var button = composer.querySelector('[type=submit]');
         var error = composer.querySelector('[data-send-error]');
 
+        setUpImages(composer, textarea, error);
+
         composer.addEventListener('submit', function (e) {
             e.preventDefault();
             if (button.disabled) { return; }
@@ -189,5 +191,97 @@
                 textarea.focus();
             });
         });
+    }
+
+    // ---- Photos: upload, then put the short link into the message box -----------------------
+    function setUpImages(form, textarea, error) {
+        var button = form.querySelector('[data-image-button]');
+        var input = form.querySelector('[data-image-input]');
+        var expiry = form.querySelector('[data-image-expiry]');
+        var options = form.querySelector('[data-image-options]');
+        var hint = form.querySelector('[data-composer-hint]');
+        if (!button || !input || !form.dataset.uploadUrl) { return; }
+        var maxBytes = parseInt(form.dataset.maxUpload, 10) || 0;
+        var storageKey = 'mesh.imageExpiry';
+
+        button.classList.remove('d-none');
+        if (options) { options.classList.remove('d-none'); options.classList.add('d-inline-flex'); }
+        try {
+            var saved = window.localStorage.getItem(storageKey);
+            if (saved && expiry && expiry.querySelector('option[value="' + saved + '"]')) { expiry.value = saved; }
+        } catch (e) { /* storage blocked: keep the default */ }
+        if (expiry) {
+            expiry.addEventListener('change', function () {
+                try { window.localStorage.setItem(storageKey, expiry.value); } catch (e) { /* ignore */ }
+            });
+        }
+
+        button.addEventListener('click', function () { input.click(); });
+        input.addEventListener('change', function () {
+            if (input.files && input.files[0]) { upload(input.files[0]); }
+            input.value = '';
+        });
+        // Paste a screenshot or copied image straight into the message box.
+        textarea.addEventListener('paste', function (e) {
+            var items = (e.clipboardData && e.clipboardData.items) || [];
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].kind === 'file' && items[i].type.indexOf('image/') === 0) {
+                    e.preventDefault();
+                    upload(items[i].getAsFile());
+                    return;
+                }
+            }
+        });
+
+        function insertLink(url) {
+            var start = textarea.selectionStart != null ? textarea.selectionStart : textarea.value.length;
+            var end = textarea.selectionEnd != null ? textarea.selectionEnd : start;
+            var before = textarea.value.slice(0, start);
+            var after = textarea.value.slice(end);
+            var text = (before && !/\s$/.test(before) ? ' ' : '') + url + (after && !/^\s/.test(after) ? ' ' : '');
+            textarea.value = before + text + after;
+            var caret = before.length + text.length;
+            textarea.focus();
+            textarea.setSelectionRange(caret, caret);
+            textarea.dispatchEvent(new Event('input'));
+        }
+
+        function upload(file) {
+            if (!file || button.disabled) { return; }
+            error.classList.add('d-none');
+            if (maxBytes && file.size > maxBytes) {
+                showError('That image is ' + (file.size / 1048576).toFixed(1) + ' MB; the limit is ' + Math.round(maxBytes / 1048576) + ' MB.');
+                return;
+            }
+            var hintText = hint ? hint.textContent : '';
+            var icon = button.querySelector('i');
+            button.disabled = true;
+            icon.className = 'spinner-border spinner-border-sm';
+            if (hint) { hint.textContent = 'Uploading photo… (shrinking it and removing location data)'; }
+
+            var body = new FormData();
+            body.append('file', file, file.name || 'pasted.png');
+            if (expiry) { body.append('expires', expiry.value); }
+            if (token) { body.append('__RequestVerificationToken', token.value); }
+            fetch(form.dataset.uploadUrl, { method: 'POST', body: body, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+                .then(function (r) {
+                    return r.json().catch(function () { return {}; }).then(function (data) { return { ok: r.ok, data: data }; });
+                })
+                .then(function (result) {
+                    if (!result.ok || !result.data.url) { throw new Error(result.data.error || 'The upload failed.'); }
+                    insertLink(result.data.url);
+                })
+                .catch(function (err) { showError(err.message || 'The upload failed.'); })
+                .finally(function () {
+                    button.disabled = false;
+                    icon.className = 'bi bi-image';
+                    if (hint) { hint.textContent = hintText; }
+                });
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.classList.remove('d-none');
+        }
     }
 })();
