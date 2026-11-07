@@ -45,11 +45,11 @@ public sealed partial class DeviceController(MeshApiClient api) : WebController
     }
 
     [HttpPost]
-    public async Task<IActionResult> Advert(bool flood, CancellationToken ct)
+    public async Task<IActionResult> Advert(bool flood, string? returnUrl, CancellationToken ct)
     {
         await api.SendAdvertAsync(flood, ct);
         Flash(flood ? "Flood advert sent through the mesh." : "Advert sent to nearby nodes.");
-        return RedirectToAction(nameof(Index));
+        return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToAction(nameof(Index));
     }
 
     [HttpPost, Authorize(AuthPolicies.Admin)]
@@ -197,6 +197,30 @@ public sealed class MessagesController(MeshApiClient api) : WebController
         var senders = ChatViewModel.SendersFrom(await api.ContactsAsync(ct: ct));
         return View("Chat", new ChatViewModel(key, channel.Name, $"Channel {id}", null, id, messages.Reverse().ToList(), await UserNamesAsync(ct), limit,
             TempData["Draft"] as string, SenderContacts: senders));
+    }
+
+    /// <summary>
+    /// Where a channel sender's name leads: their private chat when exactly one contact has that name, otherwise a page
+    /// explaining how to get them into the contacts (or picking between contacts with the same name).
+    /// </summary>
+    public async Task<IActionResult> Sender(string? name, byte? channel, CancellationToken ct)
+    {
+        name = name?.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            return RedirectToAction(nameof(Index));
+        }
+        var sameName = (await api.ContactsAsync(ct: ct)).Where(c => string.Equals(c.Name.Trim(), name, StringComparison.Ordinal)).ToList();
+        if (sameName.Count == 1)
+        {
+            return RedirectToAction(nameof(Direct), new { id = sameName[0].PublicKey });
+        }
+        var device = await api.DeviceAsync(ct);
+        var connected = device.State == Radio.RadioState.Connected;
+        var heard = connected ? await HomeController.TryAsync(() => api.DiscoveredAsync(ct)) ?? [] : [];
+        return View(new SenderHelpViewModel(name, channel, sameName,
+            [.. heard.Where(h => string.Equals(h.Name.Trim(), name, StringComparison.Ordinal))],
+            device.Node?.Preferences.ManualAddContacts, connected, IsAdmin));
     }
 
     public async Task<IActionResult> Direct(string id, long? before, CancellationToken ct)

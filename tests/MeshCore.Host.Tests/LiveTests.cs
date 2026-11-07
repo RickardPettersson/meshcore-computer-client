@@ -274,9 +274,33 @@ public class ChannelSenderTests
         var alice = Convert.ToHexStringLower(Key(10));
 
         Assert.Contains($"title=\"Send Alice a private message\" href=\"/Messages/Direct/{alice}\"", chat, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("title=\"Mallory isn't in your contacts (or the name isn't unique), so a private message isn't possible yet. Add them on the Contacts page.\" href=\"/Contacts\"", chat, StringComparison.Ordinal);
+        Assert.Contains("title=\"Mallory isn't in your contacts yet. Tap to see how to message them privately.\" href=\"/Messages/Sender?name=Mallory&amp;channel=0\"", chat, StringComparison.Ordinal);
         Assert.Contains("data-sender-contacts=\"{&quot;Alice&quot;:", chat, StringComparison.Ordinal); // for live messages (chat.js)
         Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync($"/Messages/Direct/{alice}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Unknown_sender_page_explains_how_to_reach_them_and_contacts_go_straight_to_chat()
+    {
+        using var app = new ApiFactory { Radio = ApiFactory.DefaultRadio().On(0x07, Ok) };
+        var browser = new Browser(app);
+        await browser.SetupAsync();
+        await app.WaitForRadioAsync();
+
+        var page = await browser.PageAsync("/Messages/Sender?name=Mallory&channel=0");
+        var alice = await browser.GetAsync("/Messages/Sender?name=Alice&channel=0");
+        var advert = await browser.SubmitAsync("/Messages/Sender?name=Mallory&channel=0", "/Device/Advert",
+            ("flood", "true"), ("returnUrl", "/Messages/Sender?name=Mallory&channel=0"));
+        var offsite = await browser.SubmitAsync("/Device", "/Device/Advert", ("flood", "false"), ("returnUrl", "https://example.com/"));
+
+        Assert.Contains("Mallory isn't in your contacts yet", page, StringComparison.Ordinal);
+        Assert.Contains("Ask them to send an advert.", page, StringComparison.Ordinal);
+        Assert.Contains("action=\"/Device/Advert\"", page, StringComparison.Ordinal);
+        Assert.Contains("href=\"/Messages/Channel/0\"", page, StringComparison.Ordinal);                  // back to the channel
+        Assert.Equal(HttpStatusCode.Redirect, alice.StatusCode);
+        Assert.Equal($"/Messages/Direct/{Convert.ToHexStringLower(Key(10))}", alice.Headers.Location?.OriginalString, ignoreCase: true);
+        Assert.Equal("/Messages/Sender?name=Mallory&channel=0", advert.Headers.Location?.OriginalString);
+        Assert.Equal("/Device", offsite.Headers.Location?.OriginalString);                                   // never off-site
     }
 
     [Fact]

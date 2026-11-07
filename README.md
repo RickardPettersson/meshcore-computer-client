@@ -48,7 +48,8 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
 4. Chats are **live**: new messages appear without reloading, delivery ticks go ✓ → ✓✓, and each user has their own unread badges.
    On a phone, use the browser's "Add to Home Screen" to open it like an app.
 5. In a channel, tap a sender's name to message them privately. That works when they're in your contacts under that exact name
-   (channel messages only carry the name). Other names link to **Contacts**, where newly heard nodes can be added.
+   (channel messages only carry the name). Other names open a page explaining how to get them into your contacts:
+   they send an advert, or you swap contact cards. It also has a button to send your own advert.
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
 For phones, use **HTTPS on port 5443**. The app makes its own certificate; open `/Account/Certificate` on the phone to install it (see the [setup guide](docs/SETUP.md#5-phones-https-and-install-as-app)).

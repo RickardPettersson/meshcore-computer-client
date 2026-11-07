@@ -29,7 +29,7 @@
 <div class="app-chat" id="chat" aria-live="polite"
      data-conversation="@Model.Key" data-me="@me" data-channel="@(isChannel ? "true" : "false")"
      data-updates-url="@Url.Action("Updates", "Messages")" data-read-url="@Url.Action("MarkRead", "Messages")"
-     data-direct-url="@Url.Action("Direct", "Messages", new { id = "__key__" })" data-contacts-url="@Url.Action("Index", "Contacts")"
+     data-direct-url="@Url.Action("Direct", "Messages", new { id = "__key__" })" data-sender-url="@Url.Action("Sender", "Messages", new { channel = Model.ChannelIndex })"
      data-sender-contacts="@(isChannel ? System.Text.Json.JsonSerializer.Serialize(Model.SenderContacts ?? new Dictionary<string, string>()) : "")">
     @if (Model.Messages.Count == 50)
     {
@@ -50,8 +50,8 @@
                     }
                     else
                     {
-                        <a class="app-sender unknown" asp-controller="Contacts" asp-action="Index"
-                           title="@who isn't in your contacts (or the name isn't unique), so a private message isn't possible yet. Add them on the Contacts page.">@who</a>
+                        <a class="app-sender unknown" asp-action="Sender" asp-route-name="@who" asp-route-channel="@Model.ChannelIndex"
+                           title="@who isn't in your contacts yet. Tap to see how to message them privately.">@who</a>
                     }
                 </div>
             }

@@ -1,0 +1,109 @@
+@model SenderHelpViewModel
+@{
+    ViewData["Title"] = Model.Name;
+    var here = Url.Action("Sender", "Messages", new { name = Model.Name, channel = Model.Channel });
+}
+<div class="app-narrow">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        @if (Model.Channel is { } ch)
+        {
+            <a class="btn btn-sm btn-outline-secondary" asp-action="Channel" asp-route-id="@ch" aria-label="Back to the channel"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+        }
+        else
+        {
+            <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to chats"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+        }
+        <span class="app-avatar flex-shrink-0 rounded-circle bg-secondary-subtle text-secondary-emphasis" aria-hidden="true"><i class="bi bi-person"></i></span>
+        <h1 class="h5 mb-0 text-truncate">@Model.Name</h1>
+    </div>
+
+    @if (Model.SameName.Count > 1)
+    {
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-people me-2" aria-hidden="true"></i>@Model.SameName.Count contacts are called @Model.Name</div>
+            <div class="list-group list-group-flush">
+                @foreach (var c in Model.SameName)
+                {
+                    <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" asp-action="Direct" asp-route-id="@c.PublicKey">
+                        <span class="me-auto"><strong>@c.Name</strong> <span class="small text-body-secondary app-mono">@c.KeyPrefix</span></span>
+                        <span class="small text-body-secondary">heard <partial name="_Time" model="@(c.LastHeard ?? c.LastAdvert)" /></span>
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i>
+                    </a>
+                }
+            </div>
+            <div class="card-footer small text-body-secondary">A channel message only shows the name, so it can't tell which one wrote it. Pick the one you mean.</div>
+        </div>
+    }
+    else
+    {
+        @foreach (var h in Model.Heard)
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2">
+                <span class="me-auto"><i class="bi bi-ear me-1" aria-hidden="true"></i>Your radio heard <strong>@h.Name</strong> advertise
+                    <partial name="_Time" model="@((DateTimeOffset?)h.HeardAt)" />. Add them to start a private chat.</span>
+                @if (Model.IsAdmin)
+                {
+                    <form asp-controller="Contacts" asp-action="AddDiscovered" method="post">
+                        <input type="hidden" name="key" value="@h.PublicKey"><input type="hidden" name="name" value="@h.Name"><input type="hidden" name="chat" value="true">
+                        <button class="btn btn-success btn-sm" type="submit"><i class="bi bi-person-plus" aria-hidden="true"></i> Add &amp; chat</button>
+                    </form>
+                }
+                else
+                {
+                    <span class="small">Ask an admin to add them under Contacts.</span>
+                }
+            </div>
+        }
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6">@Model.Name isn't in your contacts yet</h2>
+                <p class="mb-0">A channel message carries only the sender's <em>name</em>. A private message needs their node's key, and your
+                    radio learns that only when it hears their <strong>advert</strong>. Repeaters advertise by themselves, but most companion
+                    radios only advertise when someone presses <em>Advert</em>. So you can chat with someone in a channel for a long time without
+                    your radio ever getting their key.</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-signpost-2 me-2" aria-hidden="true"></i>How to message @Model.Name privately</div>
+            <ol class="list-group list-group-flush list-group-numbered">
+                <li class="list-group-item">
+                    <strong>Ask them to send an advert.</strong> In the MeshCore app: <em>Advert</em>, then <em>Flood</em> if they're far away.
+                    You can ask in the channel.
+                    @if (Model.ManualAddContacts == true)
+                    {
+                        <span>Your radio has <em>add contacts manually</em> on, so they'll show up as a heard node, here and under Contacts.</span>
+                    }
+                    else
+                    {
+                        <span>When it reaches your radio they're added by themselves, and their name in the channel opens a private chat.</span>
+                    }
+                </li>
+                <li class="list-group-item">
+                    <strong>Send your own advert</strong>, so they can add you too and the two radios learn the way to each other.
+                    <form class="mt-2" asp-controller="Device" asp-action="Advert" method="post"
+                          data-confirm="Flood our advert through the whole mesh? Use this sparingly: it uses airtime on every repeater." data-confirm-button="Flood advert">
+                        <input type="hidden" name="flood" value="true"><input type="hidden" name="returnUrl" value="@here">
+                        <button class="btn btn-outline-primary btn-sm" type="submit" disabled="@(!Model.Connected)"><i class="bi bi-broadcast" aria-hidden="true"></i> Send advert (flood)</button>
+                    </form>
+                </li>
+                <li class="list-group-item">
+                    <strong>Or swap contact cards outside the mesh</strong> (e.g. by text message). They share their contact from the MeshCore
+                    app, and you paste it under
+                    @if (Model.IsAdmin)
+                    {
+                        <a asp-controller="Contacts" asp-action="Import">Contacts → Import</a>
+                    }
+                    else
+                    {
+                        <span>Contacts → Import (Admin)</span>
+                    }.
+                    Yours is under <a asp-controller="Device" asp-action="Card">Device → My contact card</a>.
+                </li>
+            </ol>
+        </div>
+        <p class="small text-body-secondary">Once they're a contact, this page takes you straight to the private chat.
+            <a href="@here">Check again</a></p>
+    }
+</div>

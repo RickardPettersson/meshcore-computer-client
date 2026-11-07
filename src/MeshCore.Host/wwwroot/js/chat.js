@@ -45,7 +45,7 @@
         icon.setAttribute('aria-label', m.status);
     }
 
-    /** A channel sender's name: opens a private chat when they're a (uniquely named) contact, else the Contacts page. */
+    /** A channel sender's name: opens a private chat when they're a (uniquely named) contact, else the "how to reach them" page. */
     function senderLink(name) {
         var a = document.createElement('a');
         a.className = 'app-sender';
@@ -59,9 +59,10 @@
             icon.setAttribute('aria-hidden', 'true');
             a.appendChild(icon);
         } else {
-            a.href = chat.dataset.contactsUrl;
+            var url = chat.dataset.senderUrl;
+            a.href = url + (url.indexOf('?') < 0 ? '?' : '&') + 'name=' + encodeURIComponent(name.trim());
             a.classList.add('unknown');
-            a.title = name + " isn't in your contacts (or the name isn't unique), so a private message isn't possible yet. Add them on the Contacts page.";
+            a.title = name + " isn't in your contacts yet. Tap to see how to message them privately.";
         }
         return a;
     }

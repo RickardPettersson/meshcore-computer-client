@@ -121,3 +121,14 @@ public sealed record ChatViewModel(
     public string? SenderKey(string? senderName) =>
         senderName is not null && SenderContacts is not null && SenderContacts.TryGetValue(senderName.Trim(), out var key) ? key : null;
 }
+
+/// <summary>
+/// "Who is this?" for a channel sender who can't be messaged privately yet. Channel messages carry only the name;
+/// a private message needs the node's key, which the radio learns from its advert.
+/// </summary>
+/// <param name="SameName">Contacts with this exact name, when there are several (pick one).</param>
+/// <param name="Heard">Nodes with this name the radio heard advertising, not added yet ("add contacts manually" is on).</param>
+/// <param name="ManualAddContacts">The radio waits for contacts to be added by hand; null when unknown (offline).</param>
+public sealed record SenderHelpViewModel(
+    string Name, byte? Channel, IReadOnlyList<ContactResponse> SameName, IReadOnlyList<DiscoveredNodeResponse> Heard,
+    bool? ManualAddContacts, bool Connected, bool IsAdmin);

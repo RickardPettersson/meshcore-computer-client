@@ -159,11 +159,11 @@ public sealed partial class ContactsController
     }
 
     [HttpPost, Authorize(AuthPolicies.Admin)]
-    public async Task<IActionResult> AddDiscovered(string key, string name, CancellationToken ct)
+    public async Task<IActionResult> AddDiscovered(string key, string name, bool chat, CancellationToken ct)
     {
         await api.AddDiscoveredAsync(key, ct);
         Flash($"{name} added to contacts.");
-        return RedirectToAction(nameof(Index));
+        return chat ? RedirectToAction(nameof(MessagesController.Direct), "Messages", new { id = key }) : RedirectToAction(nameof(Index));
     }
 
     /// <summary>Runs a remote request and shows its result on the details page. Slow or failed remote answers
