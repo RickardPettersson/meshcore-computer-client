@@ -104,4 +104,20 @@ public sealed record ContactDetailsViewModel(
 public sealed record ChatViewModel(
     string Key,
     string Title, string? Subtitle, string? ContactKey, byte? ChannelIndex, IReadOnlyList<MessageResponse> Messages,
-    IReadOnlyDictionary<string, string> UserNames, int MaxBytes, string? Draft, bool CliAvailable = false);
+    IReadOnlyDictionary<string, string> UserNames, int MaxBytes, string? Draft, bool CliAvailable = false,
+    IReadOnlyDictionary<string, string>? SenderContacts = null)
+{
+    /// <summary>
+    /// Channel messages only carry the sender's name, so a private chat is possible when exactly one contact has that
+    /// name. Built from the radio's contacts: name → public key, leaving out names shared by more than one contact.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> SendersFrom(IEnumerable<ContactResponse> contacts) =>
+        contacts.Where(c => !string.IsNullOrWhiteSpace(c.Name))
+            .GroupBy(c => c.Name.Trim(), StringComparer.Ordinal)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.Single().PublicKey, StringComparer.Ordinal);
+
+    /// <summary>The contact's public key for a channel sender, or null when they can't be messaged privately (yet).</summary>
+    public string? SenderKey(string? senderName) =>
+        senderName is not null && SenderContacts is not null && SenderContacts.TryGetValue(senderName.Trim(), out var key) ? key : null;
+}

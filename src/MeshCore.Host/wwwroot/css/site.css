@@ -114,6 +114,12 @@ body {
 .app-bubble.theirs { align-self: flex-start; border-bottom-left-radius: .25rem; }
 .app-bubble .meta { font-size: .75rem; opacity: .75; }
 
+/* Channel sender: tap to start a private chat. Unknown senders (not a contact) look quieter. */
+.app-sender { color: inherit; text-decoration: none; }
+.app-sender:hover, .app-sender:focus-visible { text-decoration: underline; }
+.app-sender .bi { font-size: .8em; opacity: .6; }
+.app-sender.unknown { text-decoration: underline dotted; text-underline-offset: .2em; opacity: .85; }
+
 .app-composer {
     position: sticky;
     bottom: calc(var(--app-tabbar-height) + var(--app-safe-bottom));

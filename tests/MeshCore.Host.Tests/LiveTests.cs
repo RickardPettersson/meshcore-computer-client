@@ -256,3 +256,42 @@ public class SimulatorTests
         Assert.NotEmpty(await client.DrainMessagesAsync());
     }
 }
+
+public class ChannelSenderTests
+{
+    [Fact]
+    public async Task Channel_senders_who_are_contacts_link_to_a_private_chat()
+    {
+        using var app = new ApiFactory();
+        var browser = new Browser(app);
+        await browser.SetupAsync();
+        await app.WaitForRadioAsync();
+        var store = app.Services.GetRequiredService<MeshStore>();
+        await store.SaveIncomingAsync(FrameParser.Parse(ChannelMessage(0, "Alice: anyone around?")));
+        await store.SaveIncomingAsync(FrameParser.Parse(ChannelMessage(0, "Mallory: hi all")));
+
+        var chat = await browser.PageAsync("/Messages/Channel/0");
+        var alice = Convert.ToHexStringLower(Key(10));
+
+        Assert.Contains($"title=\"Send Alice a private message\" href=\"/Messages/Direct/{alice}\"", chat, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("title=\"Mallory isn't in your contacts (or the name isn't unique), so a private message isn't possible yet. Add them on the Contacts page.\" href=\"/Contacts\"", chat, StringComparison.Ordinal);
+        Assert.Contains("data-sender-contacts=\"{&quot;Alice&quot;:", chat, StringComparison.Ordinal); // for live messages (chat.js)
+        Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync($"/Messages/Direct/{alice}")).StatusCode);
+    }
+
+    [Fact]
+    public void Senders_are_matched_by_exact_unique_name()
+    {
+        static Host.Api.ContactResponse C(string key, string name) =>
+            new(key, key[..12], name, AdvertType.Chat, false, null, 0, 0, DateTimeOffset.UnixEpoch, null, true);
+
+        var senders = Web.ChatViewModel.SendersFrom([C("aa".PadRight(64, '1'), "Alice"), C("bb".PadRight(64, '2'), " Twin "), C("cc".PadRight(64, '3'), "Twin"), C("dd".PadRight(64, '4'), "")]);
+        var model = new Web.ChatViewModel("c:0", "Public", null, null, 0, [], new Dictionary<string, string>(), 150, null, SenderContacts: senders);
+
+        Assert.Equal(["Alice"], senders.Keys);                   // "Twin" is ambiguous, "" is skipped
+        Assert.Equal("aa".PadRight(64, '1'), model.SenderKey("Alice "));
+        Assert.Null(model.SenderKey("alice"));                     // names are case-sensitive on the mesh
+        Assert.Null(model.SenderKey("Twin"));
+        Assert.Null(model.SenderKey(null));
+    }
+}

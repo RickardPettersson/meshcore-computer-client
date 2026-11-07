@@ -194,7 +194,9 @@ public sealed class MessagesController(MeshApiClient api) : WebController
         var key = Data.ConversationKey.Channel(id);
         await MarkNewestReadAsync(key, messages, before, ct);
         var limit = ProtocolLimits.MaxChannelTextBytes(device.Node?.Name ?? "");
-        return View("Chat", new ChatViewModel(key, channel.Name, $"Channel {id}", null, id, messages.Reverse().ToList(), await UserNamesAsync(ct), limit, TempData["Draft"] as string));
+        var senders = ChatViewModel.SendersFrom(await api.ContactsAsync(ct: ct));
+        return View("Chat", new ChatViewModel(key, channel.Name, $"Channel {id}", null, id, messages.Reverse().ToList(), await UserNamesAsync(ct), limit,
+            TempData["Draft"] as string, SenderContacts: senders));
     }
 
     public async Task<IActionResult> Direct(string id, long? before, CancellationToken ct)

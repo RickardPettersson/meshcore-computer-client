@@ -14,6 +14,8 @@
     var isChannel = chat.dataset.channel === 'true';
     var token = composer ? composer.querySelector('input[name="__RequestVerificationToken"]') : null;
     var end = document.getElementById('chat-end');
+    var senderContacts = {};
+    try { senderContacts = JSON.parse(chat.dataset.senderContacts || '{}'); } catch (e) { senderContacts = {}; }
 
     var icons = {
         Sending: 'bi-clock', Sent: 'bi-check2', Delivered: 'bi-check2-all', NotConfirmed: 'bi-question-circle', Failed: 'bi-exclamation-circle',
@@ -43,6 +45,27 @@
         icon.setAttribute('aria-label', m.status);
     }
 
+    /** A channel sender's name: opens a private chat when they're a (uniquely named) contact, else the Contacts page. */
+    function senderLink(name) {
+        var a = document.createElement('a');
+        a.className = 'app-sender';
+        a.textContent = name;
+        var contactKey = Object.prototype.hasOwnProperty.call(senderContacts, name.trim()) ? senderContacts[name.trim()] : null;
+        if (contactKey) {
+            a.href = chat.dataset.directUrl.replace('__key__', encodeURIComponent(contactKey));
+            a.title = 'Send ' + name + ' a private message';
+            var icon = document.createElement('i');
+            icon.className = 'bi bi-chat-dots ms-1';
+            icon.setAttribute('aria-hidden', 'true');
+            a.appendChild(icon);
+        } else {
+            a.href = chat.dataset.contactsUrl;
+            a.classList.add('unknown');
+            a.title = name + " isn't in your contacts (or the name isn't unique), so a private message isn't possible yet. Add them on the Contacts page.";
+        }
+        return a;
+    }
+
     function render(m) {
         var mine = m.direction === 'Outgoing';
         var el = template.content.firstElementChild.cloneNode(true);
@@ -52,7 +75,7 @@
         el.querySelector('[data-text]').textContent = m.text;
         if (!mine && isChannel && m.senderName) {
             var s = el.querySelector('[data-sender]');
-            s.textContent = m.senderName;
+            s.appendChild(senderLink(m.senderName));
             s.classList.remove('d-none');
         }
         if (mine && m.sentByUserId && m.sentByUserId !== me) {
