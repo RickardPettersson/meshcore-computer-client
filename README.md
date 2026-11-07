@@ -112,6 +112,26 @@ dotnet run --project tools/MeshCore.Cli -- info --connect 192.168.1.212
 The CLI commands are `ports`, `info`, `contacts`, `channels`, `messages`, `listen`, `send`, `send-channel`, `advert` and `cli`.
 `cli` runs a command on the radio itself (firmware v14+), e.g. `cli get wifi.ip` or `cli set wifi.ssid MyNetwork`.
 
+## Screenshots
+
+Version 1.1.0, with the built-in radio simulator.
+
+**Desktop**
+
+![Channel chat on a desktop: messages with sender, hops and signal; the photo button and "photos kept" picker under the message box](docs/screenshots/v1.1.0-chat-desktop.png)
+
+| Dashboard | Contacts | Device |
+|---|---|---|
+| ![Dashboard with node, battery, contacts, channels and recent chats](docs/screenshots/v1.1.0-dashboard.png) | ![Contacts list with type, route, key and actions](docs/screenshots/v1.1.0-contacts.png) | ![Device page with connection, node, hardware and actions such as sending an advert](docs/screenshots/v1.1.0-device.png) |
+
+**Phone**
+
+| Chats | Channel | Private chat |
+|---|---|---|
+| <img src="docs/screenshots/v1.1.0-chats-phone.png" alt="Chat list on a phone with unread badges" width="240"> | <img src="docs/screenshots/v1.1.0-chat-phone.png" alt="Public channel on a phone" width="240"> | <img src="docs/screenshots/v1.1.0-direct-phone.png" alt="Private chat with Alice on a phone, delivered tick" width="240"> |
+
+New screenshots for a later version: see [build/take-screenshots.cs](build/take-screenshots.cs).
+
 ## Develop
 
 ```bash

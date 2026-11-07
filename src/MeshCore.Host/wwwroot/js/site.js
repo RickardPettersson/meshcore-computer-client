@@ -77,14 +77,19 @@
     });
 
     // ---- Times: rendered in UTC on the server, shown in the viewer's own time zone ----
-    var today = new Date().toDateString();
-    document.querySelectorAll('time[data-local-time]').forEach(function (el) {
-        var d = new Date(el.getAttribute('datetime'));
-        if (isNaN(d)) { return; }
-        el.textContent = d.toDateString() === today
-            ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    });
+    // Again whenever live.js swaps in fresh server HTML (the chat list), or those times stay in UTC.
+    function localizeTimes() {
+        var today = new Date().toDateString();
+        document.querySelectorAll('time[data-local-time]').forEach(function (el) {
+            var d = new Date(el.getAttribute('datetime'));
+            if (isNaN(d)) { return; }
+            el.textContent = d.toDateString() === today
+                ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        });
+    }
+    localizeTimes();
+    document.addEventListener('mesh:content', localizeTimes);
 
     // ---- Installable app (PWA). Browsers only allow service workers on HTTPS or localhost. ----
     if ('serviceWorker' in navigator && window.isSecureContext) {
