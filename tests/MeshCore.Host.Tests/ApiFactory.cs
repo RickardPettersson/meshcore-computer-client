@@ -73,9 +73,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         var radio = Services.GetRequiredService<MeshRadio>();
         var until = DateTime.UtcNow.AddSeconds(5);
-        while (!radio.Status.IsConnected)
+        // Connected is reported before the queued messages are fetched, so wait for the sync too.
+        while (!radio.IsSynced)
         {
-            Assert.True(DateTime.UtcNow < until, "The scripted radio never connected.");
+            Assert.True(DateTime.UtcNow < until, "The scripted radio never connected and synced.");
             await Task.Delay(20);
         }
     }

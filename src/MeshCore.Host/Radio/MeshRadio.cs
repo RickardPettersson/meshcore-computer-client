@@ -246,12 +246,20 @@ public sealed partial class MeshRadio(MeshStore store, ILogger<MeshRadio> logger
         await RefreshContactsAsync(cancellationToken);
         await RefreshChannelsAsync(cancellationToken);
         SetStatus(new RadioStatus(RadioState.Connected, endpoint, client.SelfInfo, client.DeviceInfo, now));
+        // Connected first, so the website shows the radio online while a long backlog downloads.
         var synced = await SyncMessagesAsync(cancellationToken);
+        Volatile.Write(ref _synced, true);
         LogAttached(endpoint, synced);
     }
 
+    private bool _synced;
+
+    /// <summary>True once the messages queued on the radio at connect time have been fetched and stored.</summary>
+    internal bool IsSynced => Volatile.Read(ref _synced) && Status.IsConnected;
+
     internal void Detach(MeshCoreClient client)
     {
+        Volatile.Write(ref _synced, false);
         client.PushReceived -= OnPush;
         Interlocked.CompareExchange(ref _client, null, client);
     }
