@@ -30,7 +30,8 @@ function Invoke-Step([string] $title, [scriptblock] $block) {
 }
 
 if (-not $SkipTests) {
-    Invoke-Step "Test" { dotnet test MeshCore.slnx -c Release --nologo -v q }
+    Write-Host "==> Test"
+    & (Join-Path $PSScriptRoot "test.ps1")
 }
 
 Invoke-Step "Publish MeshCore.Host (win-x64, single file, self-contained)" {
