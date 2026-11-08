@@ -64,7 +64,8 @@ public sealed record DeviceResponse(
         s.Device is { } d ? new HardwareResponse(d.Model, d.FirmwareVersion, d.FirmwareBuildDate, d.FirmwareVersionCode, d.MaxContacts, d.MaxChannels) : null);
 }
 
-public sealed record BatteryResponse(int Millivolts, double Volts, uint? StorageUsedKb, uint? StorageTotalKb);
+/// <param name="Percent">Estimated charge from the voltage (single-cell Li-ion curve), 0–100; null without a reading.</param>
+public sealed record BatteryResponse(int Millivolts, double Volts, uint? StorageUsedKb, uint? StorageTotalKb, int? Percent = null);
 
 public sealed record DeviceTimeResponse(DateTimeOffset DeviceTime, DateTimeOffset ServerTime, double DriftSeconds);
 
@@ -74,13 +75,13 @@ public sealed record AdvertRequest(bool Flood = false);
 
 public sealed record ContactResponse(
     string PublicKey, string KeyPrefix, string Name, AdvertType Type, bool Favourite,
-    int? Hops, double Latitude, double Longitude, DateTimeOffset LastAdvert, DateTimeOffset? LastHeard, bool IsOnRadio)
+    int? Hops, double Latitude, double Longitude, DateTimeOffset LastAdvert, DateTimeOffset? LastHeard, bool IsOnRadio, bool IsMine = false)
 {
     public static ContactResponse From(ContactEntity c)
     {
         var path = new PathLength(c.OutPathLength);
         return new(c.PublicKey, c.KeyPrefix, c.Name, c.Type, c.Flags.HasFlag(ContactFlags.Favourite),
-            path.IsNone ? null : path.HopCount, c.Latitude, c.Longitude, c.LastAdvert, c.LastHeard, c.IsOnRadio);
+            path.IsNone ? null : path.HopCount, c.Latitude, c.Longitude, c.LastAdvert, c.LastHeard, c.IsOnRadio, c.IsMine);
     }
 }
 

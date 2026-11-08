@@ -1,0 +1,69 @@
+@model MeshCore.Host.Web.Controllers.BatteryDevicesViewModel
+@{ ViewData["Title"] = "My devices"; }
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="me-auto">
+        <h1 class="h3 mb-0">My devices</h1>
+        <p class="text-body-secondary small mb-0">Battery checked once an hour. Tap a device for its history.</p>
+    </div>
+    @if (Model.CanCheck)
+    {
+        <form asp-action="Check" method="post"><button class="btn btn-sm btn-outline-primary" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Check now</button></form>
+    }
+</div>
+
+<div class="list-group mb-3">
+    @foreach (var d in Model.Devices)
+    {
+        var latest = d.Latest;
+        var silent = latest is { Millivolts: null };
+        <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3" asp-action="History" asp-route-node="@d.Node">
+            <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true">
+                <i class="bi @(d.IsSelf ? "bi-broadcast-pin" : d.Type == MeshCore.Protocol.AdvertType.Repeater ? "bi-router" : "bi-phone")"></i>
+            </span>
+            <span class="min-w-0 me-auto">
+                <span class="d-block fw-semibold text-truncate">@d.Name @if (d.IsSelf) { <span class="badge text-bg-secondary fw-normal">this radio</span> }</span>
+                <span class="d-block small text-body-secondary">
+                    @if (latest is null)
+                    {
+                        <span>No checks yet</span>
+                    }
+                    else if (silent)
+                    {
+                        <span class="text-danger"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> @(latest.Note ?? "no answer")</span>
+                        @if (d.LastAnswer is { } ans)
+                        {
+                            <span>· last answer <partial name="_Time" model="@((DateTimeOffset?)ans.At)" /></span>
+                        }
+                        else
+                        {
+                            <span>· never answered</span>
+                        }
+                    }
+                    else
+                    {
+                        <span>Checked <partial name="_Time" model="@((DateTimeOffset?)latest.At)" /></span>
+                    }
+                </span>
+            </span>
+            <span class="text-end text-nowrap">
+                @if (d.LastAnswer is { Percent: { } pct } last)
+                {
+                    <span class="d-block fw-semibold @(silent ? "text-body-secondary" : "")">@pct%</span>
+                    <span class="d-block small text-body-secondary">@last.Volts?.ToString("0.00") V</span>
+                }
+                else
+                {
+                    <span class="text-body-secondary">—</span>
+                }
+            </span>
+        </a>
+    }
+</div>
+
+<div class="card"><div class="card-body small">
+    <p class="mb-2"><i class="bi bi-info-circle" aria-hidden="true"></i> <strong>Adding devices:</strong> open a contact under
+        <a asp-controller="Contacts" asp-action="Index">Contacts</a> and choose <em>Mark as my device</em>. This radio is always included.</p>
+    <p class="mb-0">Other devices are asked with a telemetry request (one small packet per hour), so they must allow telemetry: in the
+        MeshCore app's telemetry settings choose <em>Allow</em>, or <em>favourites</em> and make this node a favourite there.
+        Repeaters you're logged in to are asked for their status instead if telemetry fails.</p>
+</div></div>

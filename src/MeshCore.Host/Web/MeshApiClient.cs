@@ -190,6 +190,18 @@ public sealed class MeshApiClient(HttpClient http)
     public Task<MessageResponse> SendChannelAsync(byte channel, string text, CancellationToken ct = default) =>
         PostAsync<MessageResponse>("messages/channel", new SendChannelRequest(channel, text), ct);
 
+    // ---- Battery history ("my devices") ---------------------------------------------
+
+    public Task<ContactResponse> SetMineAsync(string key, bool mine, CancellationToken ct = default) =>
+        SendAsync<ContactResponse>(HttpMethod.Put, $"contacts/{Uri.EscapeDataString(key)}/mine", new SetMineRequest(mine), ct);
+
+    public Task<MyDeviceResponse[]> MyDevicesAsync(CancellationToken ct = default) => GetAsync<MyDeviceResponse[]>("battery", ct);
+
+    public Task<BatteryHistoryResponse> BatteryHistoryAsync(string node, int days, CancellationToken ct = default) =>
+        GetAsync<BatteryHistoryResponse>($"battery/{Uri.EscapeDataString(node)}?days={days}", ct);
+
+    public Task CheckBatteriesNowAsync(CancellationToken ct = default) => SendAsync(HttpMethod.Post, "battery/check", null, ct);
+
     // ---- Images -------------------------------------------------------------------
 
     public Task<ImageSettingsResponse> ImageSettingsAsync(CancellationToken ct = default) => GetAsync<ImageSettingsResponse>("images/settings", ct);

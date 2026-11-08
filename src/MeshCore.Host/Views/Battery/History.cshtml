@@ -1,0 +1,117 @@
+@model MeshCore.Host.Web.Controllers.BatteryHistoryViewModel
+@{
+    var h = Model.History;
+    var d = h.Device;
+    ViewData["Title"] = $"Battery · {d.Name}";
+    var answered = Model.Answered;
+    var latest = d.Latest;
+}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to my devices"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+    <div class="min-w-0 me-auto">
+        <h1 class="h4 mb-0 text-truncate">@d.Name</h1>
+        <div class="small text-body-secondary">Battery history@(d.IsSelf ? " · this radio" : "")</div>
+    </div>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Time range">
+        @foreach (var days in MeshCore.Host.Web.Controllers.BatteryHistoryViewModel.Ranges)
+        {
+            <a class="btn @(days == Model.Days ? "btn-primary" : "btn-outline-primary")" asp-action="History" asp-route-node="@d.Node" asp-route-days="@days"
+               aria-current="@(days == Model.Days ? "page" : null)">@(days == 1 ? "24 h" : $"{days} days")</a>
+        }
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="small text-body-secondary">Now</div>
+        @if (latest is { Millivolts: not null })
+        {
+            <div class="fs-4 fw-semibold">@latest.Percent%</div><div class="small text-body-secondary">@latest.Volts?.ToString("0.000") V</div>
+        }
+        else if (latest is not null)
+        {
+            <div class="fs-5 fw-semibold text-danger">No answer</div>
+            <div class="small text-body-secondary">@(latest.Note is "no answer" or null ? "" : latest.Note + " · ")checked <partial name="_Time" model="@((DateTimeOffset?)latest.At)" /></div>
+        }
+        else
+        {
+            <div class="fs-5 text-body-secondary">—</div>
+        }
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="small text-body-secondary">Last answer</div>
+        @if (d.LastAnswer is { } a)
+        {
+            <div class="fs-6 fw-semibold"><partial name="_Time" model="@((DateTimeOffset?)a.At)" /></div><div class="small text-body-secondary">@a.Percent% · @a.Volts?.ToString("0.000") V</div>
+        }
+        else
+        {
+            <div class="fs-6 text-body-secondary">Never</div>
+        }
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="small text-body-secondary">Range in this period</div>
+        @if (answered.Count > 0)
+        {
+            <div class="fs-6 fw-semibold">@answered.Min(r => r.Percent)% – @answered.Max(r => r.Percent)%</div>
+            <div class="small text-body-secondary">@answered.Min(r => r.Volts)?.ToString("0.00") – @answered.Max(r => r.Volts)?.ToString("0.00") V</div>
+        }
+        else
+        {
+            <div class="fs-6 text-body-secondary">—</div>
+        }
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="small text-body-secondary">Checks</div>
+        <div class="fs-6 fw-semibold">@h.Readings.Count</div>
+        <div class="small @(Model.Missed > 0 ? "text-danger" : "text-body-secondary")">@Model.Missed without an answer</div>
+    </div></div></div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        @if (h.Readings.Count == 0)
+        {
+            <p class="text-body-secondary text-center my-5">No checks in this period yet. The first one runs within an hour of marking the device@(d.IsSelf ? " or starting the app" : "").</p>
+        }
+        else
+        {
+            @BatteryChart.Render(h.Readings, h.Since, Model.Now, h.Interval)
+            <div class="d-flex justify-content-between gap-3 small text-body-secondary app-bchart-x">
+                <span><partial name="_Time" model="@((DateTimeOffset?)h.Since)" /></span>
+                <span class="d-none d-md-inline"><partial name="_Time" model="@((DateTimeOffset?)(h.Since + (Model.Now - h.Since) / 2))" /></span>
+                <span class="text-end"><partial name="_Time" model="@((DateTimeOffset?)Model.Now)" /></span>
+            </div>
+        }
+    </div>
+    <div class="card-footer small text-body-secondary">
+        <span class="me-3"><span class="app-bchart-key line"></span> battery voltage</span>
+        <span><span class="app-bchart-key miss"></span> no answer</span>
+        <span class="d-block d-sm-inline ms-sm-3">The % is estimated from the voltage (single-cell Li-ion).</span>
+    </div>
+</div>
+
+<details class="mb-3">
+    <summary>All checks in this period</summary>
+    <div class="table-responsive mt-2">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Time</th><th class="text-end">Battery</th><th class="text-end">Volts</th><th>How</th></tr></thead>
+            <tbody>
+                @foreach (var r in h.Readings.Reverse())
+                {
+                    <tr class="@(r.Millivolts is null ? "text-danger" : "")">
+                        <td><partial name="_Time" model="@((DateTimeOffset?)r.At)" /></td>
+                        <td class="text-end">@(r.Percent is { } p ? $"{p}%" : "—")</td>
+                        <td class="text-end">@(r.Volts?.ToString("0.000") ?? "—")</td>
+                        <td>@r.Note</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</details>
+
+<p class="small text-body-secondary">
+    <strong>Reading the graph:</strong> a line that slopes down and then stops points to a flat battery. A steady line that suddenly turns
+    into red "no answer" marks points to something else: power cut, reboot, out of range, or a route that changed.
+</p>

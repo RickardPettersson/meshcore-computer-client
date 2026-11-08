@@ -55,7 +55,7 @@
                     }
                 </div>
             }
-            <div data-text>@m.Text</div>
+            <div data-text>@TextLinks.Linkify(m.Text)</div>
             <div class="meta d-flex gap-2 justify-content-end">
                 @if (mine && m.SentByUserId is { } uid && uid != me)
                 {

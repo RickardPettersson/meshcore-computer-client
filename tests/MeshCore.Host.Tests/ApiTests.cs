@@ -202,6 +202,7 @@ public class RadioApiTests
         Assert.Equal("Base", device.GetProperty("node").GetProperty("name").GetString());
         Assert.Equal("Fake Board", device.GetProperty("hardware").GetProperty("model").GetString());
         Assert.Equal(4.012, battery.GetProperty("volts").GetDouble(), 3);
+        Assert.Equal(79, battery.GetProperty("percent").GetInt32()); // 4.012 V on the Li-ion curve
         Assert.Equal("Alice", Assert.Single(contacts.EnumerateArray()).GetProperty("name").GetString());
         Assert.Equal("Public", Assert.Single(channels.EnumerateArray()).GetProperty("name").GetString());
         Assert.Equal(new string('8', 1) + "b", secret.GetProperty("secretHex").GetString()![..2]);

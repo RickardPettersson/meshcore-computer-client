@@ -102,6 +102,69 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
         row.UpdatedAt = now;
     }
 
+    /// <summary>Marks or unmarks a contact as "my device". False if there's no such contact.</summary>
+    public async Task<bool> SetMineAsync(string publicKey, bool mine, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicKey);
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var key = publicKey.ToLowerInvariant();
+        return await db.Contacts.Where(c => c.PublicKey == key)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.IsMine, mine), cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    // ---- Battery history ------------------------------------------------------
+
+    /// <summary>Stores one battery check; <paramref name="millivolts"/> null = the node didn't answer.</summary>
+    public async Task<BatteryReadingEntity> AddBatteryReadingAsync(string node, int? millivolts, string? note, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(node);
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var row = new BatteryReadingEntity
+        {
+            Node = node.ToLowerInvariant(),
+            At = _time.GetUtcNow(),
+            Millivolts = millivolts,
+            Note = note is { Length: > 64 } ? note[..64] : note,
+        };
+        db.BatteryReadings.Add(row);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return row;
+    }
+
+    /// <summary>A node's checks since <paramref name="since"/>, oldest first.</summary>
+    public async Task<IReadOnlyList<BatteryReadingEntity>> GetBatteryReadingsAsync(string node, DateTimeOffset since, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(node);
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var key = node.ToLowerInvariant();
+        return await db.BatteryReadings.AsNoTracking()
+            .Where(b => b.Node == key && b.At >= since)
+            .OrderBy(b => b.At)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Each node's latest check, and its latest check that got an answer.</summary>
+    public async Task<IReadOnlyDictionary<string, (BatteryReadingEntity Latest, BatteryReadingEntity? LastAnswer)>> GetLatestBatteryReadingsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var latestIds = await db.BatteryReadings.GroupBy(b => b.Node).Select(g => g.Max(b => b.Id)).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var answeredIds = await db.BatteryReadings.Where(b => b.Millivolts != null).GroupBy(b => b.Node).Select(g => g.Max(b => b.Id))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        var ids = latestIds.Concat(answeredIds).ToHashSet();
+        var rows = await db.BatteryReadings.AsNoTracking().Where(b => ids.Contains(b.Id)).ToListAsync(cancellationToken).ConfigureAwait(false);
+        return rows.GroupBy(b => b.Node).ToDictionary(
+            g => g.Key,
+            g => (g.MaxBy(b => b.Id)!, g.Where(b => b.Millivolts != null).MaxBy(b => b.Id)));
+    }
+
+    /// <summary>Deletes checks older than <paramref name="before"/>. Returns how many.</summary>
+    public async Task<int> PruneBatteryReadingsAsync(DateTimeOffset before, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.BatteryReadings.Where(b => b.At < before).ExecuteDeleteAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     // ---- Channels -----------------------------------------------------------
 
     /// <summary>Replaces the stored channel list with what the radio has configured.</summary>

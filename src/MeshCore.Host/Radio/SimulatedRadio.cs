@@ -125,10 +125,12 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
             case CommandCode.SendTelemetryRequest:
                 var telemetryNode = NodeByKey(cmd.Slice(4, 32));
                 Reply(Concat([6, 0], U32(Interlocked.Increment(ref _ack)), U32(4000)));
-                if (telemetryNode is not null)
+                // Bob is on the edge of range: about one request in three gets no answer (shows up in the battery history).
+                if (telemetryNode is not null && !(telemetryNode.Seed == 0x30 && Random.Shared.Next(3) == 0))
                 {
-                    // LPP: ch1 voltage 4.10 V, ch1 temperature 21.5 °C (big-endian values)
-                    _ = PushLaterAsync(Concat([0x8B, 0], Key(telemetryNode.Seed)[..6], [1, 116, 0x01, 0x9A, 1, 103, 0x00, 0xD7]));
+                    // LPP: ch1 voltage (0.01 V units, drifting over the day), ch1 temperature 21.5 °C (big-endian values)
+                    var centivolts = (ushort)(SimulatedMillivolts(telemetryNode.Seed, 3950, 180) / 10);
+                    _ = PushLaterAsync(Concat([0x8B, 0], Key(telemetryNode.Seed)[..6], [1, 116, (byte)(centivolts >> 8), (byte)centivolts, 1, 103, 0x00, 0xD7]));
                 }
                 break;
             case CommandCode.SendTracePath:
@@ -202,7 +204,7 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
                 _ = DeliverAsync(ack, to, text);
                 break;
             case CommandCode.GetBatteryAndStorage:
-                Reply(Concat([12], U16(4050), U32(24), U32(3169)));
+                Reply(Concat([12], U16((ushort)SimulatedMillivolts(0x01, 4050, 40)), U32(24), U32(3169)));
                 break;
             case CommandCode.GetDeviceTime:
                 Reply(Concat([9], U32(Now)));
@@ -263,6 +265,13 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
                     U32(5_000), U32(3_120), U32(11_000), U32(4_234), U16(2), U16(unchecked((ushort)(sbyte)26)), U16(17), U16(410), U32(9_000), U32(3)));
                 break;
         }
+    }
+
+    /// <summary>A battery that rises and falls over the day (solar-ish), different per node, so the history graph has shape.</summary>
+    private int SimulatedMillivolts(byte seed, int middle, int swing)
+    {
+        var hours = time.GetUtcNow().ToUnixTimeSeconds() / 3600.0;
+        return (int)Math.Round(middle + swing * Math.Sin(hours / 24 * 2 * Math.PI + seed));
     }
 
     private async Task CliReplyAsync(Node? to, string command)

@@ -55,6 +55,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Web:SeparatePorts", "false"); // TestServer has no ports
         builder.UseSetting("Web:Https:Enabled", "false"); // no certificates needed in memory
         builder.UseSetting("Web:ApiBaseUrl", "http://localhost");
+        builder.UseSetting("BatteryLog:Enabled", "false"); // tests run checks themselves (BatteryLogService.RunOnceAsync)
+        builder.UseSetting("BatteryLog:DelayBetweenDevices", "00:00:00");
         foreach (var (key, value) in Settings)
         {
             builder.UseSetting(key, value);

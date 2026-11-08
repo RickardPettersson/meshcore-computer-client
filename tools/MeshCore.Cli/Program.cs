@@ -185,7 +185,7 @@ async Task PrintInfoAsync()
         Model       {dev.Model}
         Firmware    {dev.FirmwareVersion} ({dev.FirmwareBuildDate}, protocol v{dev.FirmwareVersionCode})
         Capacity    {dev.MaxContacts} contacts, {dev.MaxChannels} channels
-        Battery     {battery.BatteryVolts:0.000} V
+        Battery     {(battery.BatteryPercent is { } pct ? $"{pct}% ({battery.BatteryVolts:0.000} V)" : $"{battery.BatteryVolts:0.000} V")}
         Storage     {(battery.StorageTotalKb is { } total ? $"{battery.StorageUsedKb} / {total} KB" : "n/a")}
         Clock       {clock.ToLocalTime():yyyy-MM-dd HH:mm:ss}
         """);

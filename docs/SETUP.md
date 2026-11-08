@@ -40,6 +40,7 @@ Edit `appsettings.json` in that folder:
 | `Web:Https` | Website over HTTPS: `Enabled` (default on), `Port` (5443), `RedirectHttp`, and optionally your own `CertificatePath` / `CertificatePassword` (.pfx) |
 | `Kestrel:Endpoints:Api:Url` | REST API, default `http://127.0.0.1:5081` (this computer only) |
 | `MeshCore:DataDirectory` | Where the database, users, keys, certificates and logs go (default `data` next to the app) |
+| `BatteryLog` | Battery history of "my devices": `Enabled`, `Interval` (`01:00:00`), `Retention` (`90.00:00:00`). See [Battery history](#battery-history). |
 | `Images` | Photo sharing in chats: `Enabled`, `DefaultExpiry` (`1h`, `12h`, `24h`, `72h` or `keep`), `MaxDimension` (1600 px). See [Images](#images). |
 | `Serilog:MinimumLevel` | Log detail (`Information` by default; set `Override:MeshCore` to `Debug` when troubleshooting) |
 
@@ -96,6 +97,22 @@ sudo cp tools/service/meshcore.service /etc/systemd/system/
 sudo systemctl enable --now meshcore
 journalctl -u meshcore -f                  # or /opt/meshcore/data/logs
 ```
+
+## Battery history
+
+The app records the battery of **this radio** and of every contact you mark as **My device** (open the contact → *Mark as my
+device*; Admin only). **Device → My devices** lists them; tap one for a graph over 24 hours to 90 days.
+
+- **How often:** once an hour (`BatteryLog:Interval`). The schedule follows the last check, so restarting the app doesn't cause
+  extra checks. Admins can press **Check now**.
+- **How:** this radio is read directly. Other devices get a telemetry request over the mesh: one small packet per device per hour.
+  Repeaters and room servers you're logged in to are asked for their status if telemetry doesn't answer.
+- **The other device must allow telemetry.** In the MeshCore app's telemetry settings, choose *Allow*, or *favourites* and add this
+  node as a favourite there. Otherwise every check shows as "refused" or "no answer".
+- **No answer is recorded too.** A line that slopes down and then stops points to a flat battery. A steady line that suddenly turns
+  into "no answer" points to something else: power, a reboot, range or the route.
+- **Percent** is estimated from the voltage with a single-cell Li-ion curve. It reads high while charging and dips while transmitting.
+- **Storage:** readings older than 90 days are deleted (`BatteryLog:Retention`). Unmarking a device keeps its history.
 
 ## Images
 

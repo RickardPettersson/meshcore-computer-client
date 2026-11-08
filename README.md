@@ -55,6 +55,11 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
    1 hour to 3 days) or [Catbox](https://catbox.moe) (kept), then puts the short link (~36 characters) in your message.
    Uploads aren't listed anywhere, but **anyone with the link can open it**, and messages in the Public channel can be read by
    everyone on the mesh. Choose how long photos are kept under the message box. See [setup](docs/SETUP.md#images).
+7. Web addresses in messages are links that open in a new tab.
+8. **Battery:** shown as % and volts (Device page, dashboard). Mark contacts as **My device** (contact page) and the app checks
+   their battery once an hour, together with this radio's. **Device → My devices** shows each one, and a graph per device
+   (24 h to 90 days) with the checks that got no answer, so you can tell a flat battery from a device that's gone for another reason.
+   See [setup](docs/SETUP.md#battery-history).
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
 For phones, use **HTTPS on port 5443**. The app makes its own certificate; open `/Account/Certificate` on the phone to install it (see the [setup guide](docs/SETUP.md#5-phones-https-and-install-as-app)).
@@ -76,6 +81,9 @@ curl -X POST http://127.0.0.1:5081/api/v1/auth/setup -H "content-type: applicati
 
 Send the returned `accessToken` as `Authorization: Bearer <token>`. Later sign-ins use `POST /api/v1/auth/token`.
 Admins add more users with `POST /api/v1/users`. Each new user must change their temporary password at first sign-in.
+
+**Battery history:** `PUT /api/v1/contacts/{key}/mine`, `GET /api/v1/battery` (my devices), `GET /api/v1/battery/{node}?days=7`
+(`node` = `self` or a public key), `POST /api/v1/battery/check`.
 
 **Images:** `POST /api/v1/images` (multipart: `file`, `expires` = `1h`/`12h`/`24h`/`72h`/`keep`) returns `{ url, expiresAt, … }`.
 

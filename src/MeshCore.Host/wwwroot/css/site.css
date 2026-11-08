@@ -114,6 +114,11 @@ body {
 .app-bubble.theirs { align-self: flex-start; border-bottom-left-radius: .25rem; }
 .app-bubble .meta { font-size: .75rem; opacity: .75; }
 
+/* Links in messages: readable on both bubble colours; long addresses wrap instead of widening the bubble. */
+.app-bubble .app-link { overflow-wrap: anywhere; word-break: break-word; text-underline-offset: .15em; }
+.app-bubble.theirs .app-link { color: var(--bs-link-color); }
+.app-bubble.mine .app-link { color: #fff; text-decoration-color: rgba(255, 255, 255, .7); }
+
 /* Channel sender: tap to start a private chat. Unknown senders (not a contact) look quieter. */
 .app-sender { color: inherit; text-decoration: none; }
 .app-sender:hover, .app-sender:focus-visible { text-decoration: underline; }
@@ -163,3 +168,20 @@ body {
 @media (min-width: 768px) {
     .app-toasts { top: 0; }
 }
+
+/* Battery level bar on the Device page (a native <meter>: no inline styles needed). */
+.app-battery-meter { width: 10rem; max-width: 100%; height: .5rem; }
+
+/* Battery history graph (inline SVG from BatteryChart.cs). */
+.app-bchart { width: 100%; height: auto; display: block; }
+.app-bchart .grid { stroke: var(--bs-border-color); stroke-width: 1; }
+.app-bchart .frame { stroke: var(--bs-secondary-color); stroke-width: 1; }
+.app-bchart .axis { fill: var(--bs-secondary-color); font-size: 16px; }
+.app-bchart .line { fill: none; stroke: var(--bs-success); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.app-bchart .dot { fill: var(--bs-success); }
+.app-bchart .miss { fill: var(--bs-danger); }
+.app-bchart .miss-line { stroke: var(--bs-danger); stroke-opacity: .25; stroke-width: 1; stroke-dasharray: 3 3; }
+.app-bchart-x { padding: 0 9% 0 10%; } /* lines up with the plot area (BatteryChart Left/Right) */
+.app-bchart-key { display: inline-block; width: 1.2em; height: .35em; vertical-align: middle; border-radius: .2em; }
+.app-bchart-key.line { background: var(--bs-success); }
+.app-bchart-key.miss { background: var(--bs-danger); width: .45em; height: .8em; }

@@ -7,6 +7,7 @@
 }
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <div class="me-auto"><h1 class="h3 mb-0">Device</h1><p class="text-body-secondary small mb-0">@d.Endpoint</p></div>
+    <a class="btn btn-sm btn-outline-primary" asp-controller="Battery" asp-action="Index"><i class="bi bi-battery-half" aria-hidden="true"></i> My devices</a>
     <a class="btn btn-sm btn-outline-primary @(connected ? "" : "disabled")" asp-action="Card"><i class="bi bi-person-vcard" aria-hidden="true"></i> My contact card</a>
     @if (isAdmin)
     {
@@ -73,7 +74,17 @@
                         <dt class="col-5">Model</dt><dd class="col-7">@h.Model</dd>
                         <dt class="col-5">Firmware</dt><dd class="col-7">@h.FirmwareVersion <span class="text-body-secondary small">(@h.FirmwareBuildDate, protocol v@(h.FirmwareVersionCode))</span></dd>
                         <dt class="col-5">Capacity</dt><dd class="col-7">@h.MaxContacts contacts · @h.MaxChannels channels</dd>
-                        <dt class="col-5">Battery</dt><dd class="col-7">@(Model.Battery is { } b ? $"{b.Volts:0.000} V" : "—")</dd>
+                        <dt class="col-5">Battery</dt>
+                        <dd class="col-7">
+                            @if (Model.Battery is { } b)
+                            {
+                                <partial name="_BatteryLevel" model="b" />
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </dd>
                         <dt class="col-5">Storage</dt><dd class="col-7">@(Model.Battery?.StorageTotalKb is { } t ? $"{Model.Battery.StorageUsedKb} / {t} KB" : "—")</dd>
                     </dl>
                 }

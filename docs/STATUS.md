@@ -31,7 +31,8 @@ Phase 8  Polish + packaging          ██████████  done
 
 **Since the 8 phases:** Windows releases built by GitHub Actions (no .NET needed), CI with test failures as annotations,
 the Heltec V4 WiFi guide, tap a channel sender to message them privately (with a help page for senders who aren't contacts yet),
-and photo sharing: shrink, strip EXIF/GPS, upload to Litterbox/Catbox and send the short link.
+photo sharing (shrink, strip EXIF/GPS, upload to Litterbox/Catbox and send the short link), clickable links in messages,
+battery % next to volts, and an hourly battery history with graphs for this radio and contacts marked "my device".
 
 ## What works today
 

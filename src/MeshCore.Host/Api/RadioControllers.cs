@@ -21,7 +21,7 @@ public sealed class DeviceController(MeshRadio radio, TimeProvider time) : Contr
     public async Task<BatteryResponse> Battery(CancellationToken ct)
     {
         var b = await radio.GetBatteryAsync(ct);
-        return new BatteryResponse(b.BatteryMillivolts, b.BatteryVolts, b.StorageUsedKb, b.StorageTotalKb);
+        return new BatteryResponse(b.BatteryMillivolts, b.BatteryVolts, b.StorageUsedKb, b.StorageTotalKb, b.BatteryPercent);
     }
 
     [HttpGet("time")]

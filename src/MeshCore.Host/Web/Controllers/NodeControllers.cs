@@ -95,6 +95,17 @@ public sealed partial class ContactsController
         return RedirectBack(Url.Action(nameof(Details), new { id = key })!);
     }
 
+    /// <summary>"My device": its battery is checked once an hour (Battery page).</summary>
+    [HttpPost, Authorize(AuthPolicies.Admin)]
+    public async Task<IActionResult> Mine(string key, bool mine, CancellationToken ct)
+    {
+        var c = await api.SetMineAsync(key, mine, ct);
+        Flash(mine
+            ? $"{c.Name} is marked as your device. Its battery is checked once an hour; see Battery."
+            : $"{c.Name} is no longer marked as your device. Its battery history is kept.");
+        return RedirectBack(Url.Action(nameof(Details), new { id = key })!);
+    }
+
     [HttpPost, Authorize(AuthPolicies.Admin)]
     public async Task<IActionResult> Rename(string key, string name, CancellationToken ct)
     {

@@ -32,10 +32,14 @@
         </a>
     </div>
     <div class="col-6 col-lg-3">
-        <a class="card h-100 text-decoration-none app-stat" asp-controller="Device" asp-action="Index">
+        <a class="card h-100 text-decoration-none app-stat" asp-controller="Battery" asp-action="History" asp-route-node="self">
             <div class="card-body">
                 <div class="text-body-secondary small"><i class="bi bi-battery-half" aria-hidden="true"></i> Battery</div>
-                <div class="display-6">@(Model.Battery is { } b ? b.Volts.ToString("0.00") + " V" : "—")</div>
+                <div class="display-6">@(Model.Battery is { Percent: { } pct } ? $"{pct}%" : Model.Battery is { } b ? b.Volts.ToString("0.00") + " V" : "—")</div>
+                @if (Model.Battery is { Percent: not null } bv)
+                {
+                    <div class="small text-body-secondary">@bv.Volts.ToString("0.00") V</div>
+                }
                 <div class="small text-body-secondary">@(Model.Battery?.StorageTotalKb is { } total ? $"{Model.Battery.StorageUsedKb} / {total} KB storage" : "")</div>
             </div>
         </a>

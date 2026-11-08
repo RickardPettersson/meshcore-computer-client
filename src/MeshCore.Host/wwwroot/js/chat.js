@@ -67,13 +67,56 @@
         return a;
     }
 
+    // Web addresses become links that open in a new tab (same rules as TextLinks.cs on the server).
+    // Built as text nodes and <a> elements, never as HTML, so message text can't inject markup.
+    var urlPattern = /https?:\/\/[^\s<>"]+/gi;
+    var trailing = '.,;:!?\'"*';
+
+    function trimUrl(url) {
+        function count(ch) { return url.split(ch).length - 1; }
+        while (url.length) {
+            var c = url.charAt(url.length - 1);
+            if (trailing.indexOf(c) >= 0 || (c === ')' && count('(') < count(')')) || (c === ']' && count('[') < count(']'))) {
+                url = url.slice(0, -1);
+            } else {
+                break;
+            }
+        }
+        return url;
+    }
+
+    function linkify(target, text) {
+        target.textContent = '';
+        text = text || '';
+        var last = 0;
+        var match;
+        urlPattern.lastIndex = 0;
+        while ((match = urlPattern.exec(text)) !== null) {
+            var url = trimUrl(match[0]);
+            var parsed = null;
+            try { parsed = new URL(url); } catch (e) { parsed = null; }
+            if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.hostname) { continue; }
+            target.appendChild(document.createTextNode(text.slice(last, match.index)));
+            var a = document.createElement('a');
+            a.href = url;
+            a.textContent = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer nofollow';
+            a.className = 'app-link';
+            target.appendChild(a);
+            last = match.index + url.length;
+            urlPattern.lastIndex = last;
+        }
+        target.appendChild(document.createTextNode(text.slice(last)));
+    }
+
     function render(m) {
         var mine = m.direction === 'Outgoing';
         var el = template.content.firstElementChild.cloneNode(true);
         el.classList.add(mine ? 'mine' : 'theirs');
         if (m.textType === 'CliData') { el.classList.add('font-monospace', 'small'); }
         el.dataset.id = m.id;
-        el.querySelector('[data-text]').textContent = m.text;
+        linkify(el.querySelector('[data-text]'), m.text);
         if (!mine && isChannel && m.senderName) {
             var s = el.querySelector('[data-sender]');
             s.appendChild(senderLink(m.senderName));

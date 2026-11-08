@@ -74,9 +74,34 @@ public sealed class ContactEntity
     /// <summary>False once the contact was removed from the radio.</summary>
     public bool IsOnRadio { get; set; } = true;
 
+    /// <summary>"My device": set in this app only (the radio doesn't know it). Its battery is logged every hour.</summary>
+    public bool IsMine { get; set; }
+
     public DateTimeOffset FirstSeen { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// One battery check of a node: our own radio (<see cref="Self"/>) or a contact marked "my device".
+/// <see cref="Millivolts"/> is null when the node didn't answer, so outages show in the history too.
+/// </summary>
+public sealed class BatteryReadingEntity
+{
+    /// <summary><see cref="BatteryReadingEntity.Node"/> value for the radio this app is connected to.</summary>
+    public const string Self = "self";
+
+    public long Id { get; set; }
+
+    /// <summary><see cref="Self"/>, or the contact's public key (64 hex chars, lowercase).</summary>
+    public required string Node { get; set; }
+
+    public DateTimeOffset At { get; set; }
+
+    public int? Millivolts { get; set; }
+
+    /// <summary>How it was read (<c>radio</c>, <c>telemetry</c>, <c>status</c>) or why it failed (<c>no answer</c>, …).</summary>
+    public string? Note { get; set; }
 }
 
 /// <summary>A channel slot name. The shared secret stays on the radio and is never stored here.</summary>

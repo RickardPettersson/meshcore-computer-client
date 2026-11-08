@@ -14,6 +14,8 @@ public sealed class MeshDbContext(DbContextOptions<MeshDbContext> options) : DbC
 
     public DbSet<ReadMarkerEntity> ReadMarkers => Set<ReadMarkerEntity>();
 
+    public DbSet<BatteryReadingEntity> BatteryReadings => Set<BatteryReadingEntity>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         // SQLite can't compare or sort DateTimeOffset; store as Unix milliseconds (UTC) so it can.
@@ -53,6 +55,15 @@ public sealed class MeshDbContext(DbContextOptions<MeshDbContext> options) : DbC
             e.HasIndex(m => new { m.Kind, m.ContactKeyPrefix, m.ReceivedAt });
             e.HasIndex(m => new { m.Kind, m.ChannelIndex, m.ReceivedAt });
             e.HasIndex(m => m.ExpectedAck);
+        });
+
+        modelBuilder.Entity<BatteryReadingEntity>(e =>
+        {
+            e.ToTable("BatteryReadings");
+            e.Property(b => b.Node).HasMaxLength(64);
+            e.Property(b => b.Note).HasMaxLength(64);
+            e.HasIndex(b => new { b.Node, b.At });
+            e.HasIndex(b => b.At);
         });
 
         modelBuilder.Entity<ReadMarkerEntity>(e =>

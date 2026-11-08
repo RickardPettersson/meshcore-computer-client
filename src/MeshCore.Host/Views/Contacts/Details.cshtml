@@ -15,7 +15,8 @@
     <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to contacts"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
     <span class="app-avatar flex-shrink-0 rounded-circle bg-primary-subtle text-primary-emphasis" aria-hidden="true"><i class="bi @icon"></i></span>
     <div class="min-w-0 me-auto">
-        <h1 class="h4 mb-0 text-truncate">@c.Name @if (c.Favourite) { <i class="bi bi-star-fill text-warning fs-6" title="Favourite"></i> }</h1>
+        <h1 class="h4 mb-0 text-truncate">@c.Name @if (c.Favourite) { <i class="bi bi-star-fill text-warning fs-6" title="Favourite"></i> }
+            @if (c.IsMine) { <a class="badge text-bg-success text-decoration-none fs-6 align-middle" asp-controller="Battery" asp-action="History" asp-route-node="@c.PublicKey" title="Battery history"><i class="bi bi-battery-half" aria-hidden="true"></i> My device</a> }</h1>
         <div class="small text-body-secondary">@c.Type · @(c.Hops is { } h ? $"{h} hop(s)" : "route unknown (floods)")</div>
     </div>
     <a class="btn btn-primary" asp-controller="Messages" asp-action="Direct" asp-route-id="@c.PublicKey"><i class="bi bi-chat" aria-hidden="true"></i><span class="d-none d-sm-inline"> @(Model.IsServer ? "Messages & CLI" : "Message")</span></a>
@@ -55,6 +56,10 @@
             {
                 <form asp-action="Favourite" method="post"><input type="hidden" name="key" value="@c.PublicKey"><input type="hidden" name="favourite" value="@((!c.Favourite).ToString().ToLowerInvariant())">
                     <button class="btn btn-outline-warning" type="submit"><i class="bi @(c.Favourite ? "bi-star-fill" : "bi-star")" aria-hidden="true"></i> @(c.Favourite ? "Unfavourite" : "Favourite")</button></form>
+                <form asp-action="Mine" method="post"><input type="hidden" name="key" value="@c.PublicKey"><input type="hidden" name="mine" value="@((!c.IsMine).ToString().ToLowerInvariant())">
+                    <button class="btn @(c.IsMine ? "btn-success" : "btn-outline-success")" type="submit"
+                            title="Your own device: its battery is checked once an hour, with a small telemetry request.">
+                        <i class="bi @(c.IsMine ? "bi-check-circle-fill" : "bi-house-heart")" aria-hidden="true"></i> @(c.IsMine ? "My device ✓" : "Mark as my device")</button></form>
                 <details class="w-100">
                     <summary class="small">Rename on this radio…</summary>
                     <form asp-action="Rename" method="post" class="d-flex gap-2 mt-2"><input type="hidden" name="key" value="@c.PublicKey">

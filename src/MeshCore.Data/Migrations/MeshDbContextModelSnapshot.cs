@@ -16,6 +16,36 @@ namespace MeshCore.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
+            modelBuilder.Entity("MeshCore.Data.BatteryReadingEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("At")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Millivolts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Node")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("At");
+
+                    b.HasIndex("Node", "At");
+
+                    b.ToTable("BatteryReadings", (string)null);
+                });
+
             modelBuilder.Entity("MeshCore.Data.ChannelEntity", b =>
                 {
                     b.Property<byte>("Index")
@@ -44,6 +74,9 @@ namespace MeshCore.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<byte>("Flags")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsMine")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsOnRadio")

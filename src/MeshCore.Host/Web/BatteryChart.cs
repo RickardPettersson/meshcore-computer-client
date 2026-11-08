@@ -1,0 +1,99 @@
+using System.Globalization;
+using System.Text;
+using MeshCore.Host.Api;
+using MeshCore.Protocol;
+using Microsoft.AspNetCore.Html;
+
+namespace MeshCore.Host.Web;
+
+/// <summary>
+/// Draws a battery history as inline SVG on the server: no chart library and no inline script (the site's CSP forbids
+/// both). Volts on the left axis, the matching estimated percentage on the right, a red marker for every check that got
+/// no answer, and a break in the line wherever the device didn't answer or a check is missing.
+/// Colours come from CSS classes in site.css, so it follows the light/dark theme.
+/// </summary>
+public static class BatteryChart
+{
+    private const double Width = 800, Height = 280, Left = 80, Right = 728, Top = 14, Bottom = 230, MissY = 256;
+
+    public static IHtmlContent Render(IReadOnlyList<BatteryReadingResponse> readings, DateTimeOffset since, DateTimeOffset now, TimeSpan interval)
+    {
+        ArgumentNullException.ThrowIfNull(readings);
+        var answered = readings.Where(r => r.Millivolts is not null).ToList();
+        var (minMv, maxMv) = answered.Count == 0
+            ? (3300, 4300)
+            : (Math.Min(3300, answered.Min(r => r.Millivolts!.Value) - 50), Math.Max(4300, answered.Max(r => r.Millivolts!.Value) + 50));
+        minMv = minMv / 100 * 100;
+        maxMv = (maxMv + 99) / 100 * 100;
+        var span = Math.Max(1, (now - since).TotalSeconds);
+
+        double X(DateTimeOffset at) => Left + Math.Clamp((at - since).TotalSeconds / span, 0, 1) * (Right - Left);
+        double Y(int mv) => Bottom - (double)(mv - minMv) / (maxMv - minMv) * (Bottom - Top);
+        static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+
+        var svg = new StringBuilder();
+        svg.Append(CultureInfo.InvariantCulture, $"<svg class=\"app-bchart\" viewBox=\"0 0 {Width} {Height}\" role=\"img\" aria-labelledby=\"bchart-title\">");
+        svg.Append(CultureInfo.InvariantCulture,
+            $"<title id=\"bchart-title\">Battery voltage, {answered.Count} reading(s), {readings.Count - answered.Count} without an answer</title>");
+
+        // Grid: every 0.1 V, labelled with volts (left) and the estimated percentage (right).
+        var step = maxMv - minMv > 1200 ? 200 : 100;
+        for (var mv = minMv; mv <= maxMv; mv += step)
+        {
+            var y = F(Y(mv));
+            svg.Append(CultureInfo.InvariantCulture, $"<line class=\"grid\" x1=\"{Left}\" x2=\"{Right}\" y1=\"{y}\" y2=\"{y}\"/>");
+            svg.Append(CultureInfo.InvariantCulture, $"<text class=\"axis\" x=\"{Left - 6}\" y=\"{y}\" text-anchor=\"end\" dominant-baseline=\"middle\">{mv / 1000.0:0.0} V</text>");
+            if (mv <= 4200 && BatteryLevel.Percent(mv) is { } pct) // above 4.2 V is "full" (charging), no need to repeat 100%
+            {
+                svg.Append(CultureInfo.InvariantCulture, $"<text class=\"axis\" x=\"{Right + 6}\" y=\"{y}\" dominant-baseline=\"middle\">{pct}%</text>");
+            }
+        }
+        svg.Append(CultureInfo.InvariantCulture, $"<line class=\"frame\" x1=\"{Left}\" x2=\"{Right}\" y1=\"{Bottom}\" y2=\"{Bottom}\"/>");
+
+        // The line, broken at missed checks and at gaps longer than 2.5 intervals (the app or radio was off).
+        var segment = new List<BatteryReadingResponse>();
+        void Flush()
+        {
+            if (segment.Count > 1)
+            {
+                svg.Append("<polyline class=\"line\" points=\"")
+                    .AppendJoin(' ', segment.Select(r => $"{F(X(r.At))},{F(Y(r.Millivolts!.Value))}"))
+                    .Append("\"/>");
+            }
+            segment.Clear();
+        }
+        BatteryReadingResponse? previous = null;
+        foreach (var r in readings)
+        {
+            if (r.Millivolts is null || (previous is not null && r.At - previous.At > interval * 2.5))
+            {
+                Flush();
+            }
+            if (r.Millivolts is not null)
+            {
+                segment.Add(r);
+            }
+            previous = r;
+        }
+        Flush();
+
+        // Dots for each answer (when there aren't too many), red markers for each missed check.
+        if (answered.Count <= 200)
+        {
+            foreach (var r in answered)
+            {
+                svg.Append(CultureInfo.InvariantCulture,
+                    $"<circle class=\"dot\" cx=\"{F(X(r.At))}\" cy=\"{F(Y(r.Millivolts!.Value))}\" r=\"3\"><title>{r.Volts:0.000} V · {r.Percent}%</title></circle>");
+            }
+        }
+        foreach (var r in readings.Where(r => r.Millivolts is null))
+        {
+            var x = F(X(r.At));
+            svg.Append(CultureInfo.InvariantCulture,
+                $"<line class=\"miss-line\" x1=\"{x}\" x2=\"{x}\" y1=\"{Top}\" y2=\"{Bottom}\"/><rect class=\"miss\" x=\"{F(X(r.At) - 3)}\" y=\"{MissY - 6}\" width=\"6\" height=\"12\" rx=\"1\"><title>No answer ({System.Net.WebUtility.HtmlEncode(r.Note ?? "")})</title></rect>");
+        }
+        svg.Append(CultureInfo.InvariantCulture, $"<text class=\"axis\" x=\"{Left - 6}\" y=\"{MissY}\" text-anchor=\"end\" dominant-baseline=\"middle\">no answer</text>");
+        svg.Append("</svg>");
+        return new HtmlString(svg.ToString());
+    }
+}

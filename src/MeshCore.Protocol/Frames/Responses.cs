@@ -121,4 +121,7 @@ public sealed record BatteryAndStorage(ushort BatteryMillivolts, uint? StorageUs
     : MeshFrame((byte)ResponseCode.BatteryAndStorage)
 {
     public double BatteryVolts => BatteryMillivolts / 1000.0;
+
+    /// <summary>Estimated charge, 0–100 (see <see cref="BatteryLevel"/>), or null without a reading.</summary>
+    public int? BatteryPercent => BatteryLevel.Percent(BatteryMillivolts);
 }

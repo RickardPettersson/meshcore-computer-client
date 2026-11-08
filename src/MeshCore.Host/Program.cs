@@ -40,6 +40,14 @@ builder.Services.AddSingleton<MeshRadio>();
 builder.Services.AddSingleton<RadioConnectionService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RadioConnectionService>());
 
+// Battery history of "my devices": checked once an hour.
+builder.Services.AddOptions<BatteryLogOptions>()
+    .Bind(builder.Configuration.GetSection(BatteryLogOptions.SectionName))
+    .Validate(o => o.Interval >= TimeSpan.FromSeconds(10), "BatteryLog:Interval must be at least 10 seconds.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<BatteryLogService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BatteryLogService>());
+
 var consoleChat = builder.Configuration.GetValue<bool?>("MeshCore:ConsoleChat")
                   ?? (Environment.UserInteractive && !Console.IsInputRedirected);
 if (consoleChat)
