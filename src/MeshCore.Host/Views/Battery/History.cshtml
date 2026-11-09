@@ -5,11 +5,21 @@
     ViewData["Title"] = $"Battery · {d.Name}";
     var answered = Model.Answered;
     var latest = d.Latest;
+    var temps = h.Readings.Where(r => r.TemperatureC is not null).ToList();
 }
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <a class="btn btn-sm btn-outline-secondary" asp-action="Index" aria-label="Back to my devices"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
     <div class="min-w-0 me-auto">
-        <h1 class="h4 mb-0 text-truncate">@d.Name</h1>
+        <h1 class="h4 mb-0 text-truncate">
+            @if (d.IsSelf)
+            {
+                <a class="text-decoration-none" asp-controller="Device" asp-action="Index" title="Device page">@d.Name</a>
+            }
+            else
+            {
+                <a class="text-decoration-none" asp-controller="Contacts" asp-action="Details" asp-route-id="@d.Node" title="Contact page">@d.Name</a>
+            }
+        </h1>
         <div class="small text-body-secondary">Battery history@(d.IsSelf ? " · this radio" : "")</div>
     </div>
     <div class="btn-group btn-group-sm" role="group" aria-label="Time range">
@@ -26,7 +36,7 @@
         <div class="small text-body-secondary">Now</div>
         @if (latest is { Millivolts: not null })
         {
-            <div class="fs-4 fw-semibold">@latest.Percent%</div><div class="small text-body-secondary">@latest.Volts?.ToString("0.000") V</div>
+            <div class="fs-4 fw-semibold">@latest.Percent%</div><div class="small text-body-secondary">@latest.Volts?.ToString("0.000") V@(latest.TemperatureC is { } nowT ? $" · {nowT:0.0} °C" : "")</div>
         }
         else if (latest is not null)
         {
@@ -91,11 +101,33 @@
     </div>
 </div>
 
+@if (temps.Count > 0)
+{
+    <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap gap-2 justify-content-between">
+            <span><i class="bi bi-thermometer-half me-2" aria-hidden="true"></i>Temperature</span>
+            <span class="small text-body-secondary">@temps.Min(r => r.TemperatureC)?.ToString("0.0") – @temps.Max(r => r.TemperatureC)?.ToString("0.0") °C in this period</span>
+        </div>
+        <div class="card-body">
+            @BatteryChart.RenderTemperature(h.Readings, h.Since, Model.Now, h.Interval)
+            <div class="d-flex justify-content-between gap-3 small text-body-secondary app-bchart-x">
+                <span><partial name="_Time" model="@((DateTimeOffset?)h.Since)" /></span>
+                <span class="d-none d-md-inline"><partial name="_Time" model="@((DateTimeOffset?)(h.Since + (Model.Now - h.Since) / 2))" /></span>
+                <span class="text-end"><partial name="_Time" model="@((DateTimeOffset?)Model.Now)" /></span>
+            </div>
+        </div>
+        <div class="card-footer small text-body-secondary">
+            <span class="me-3"><span class="app-bchart-key tline"></span> temperature</span>
+            As the device reports it in its telemetry, usually measured on its board: it runs a little warmer than the air around it.
+        </div>
+    </div>
+}
+
 <details class="mb-3">
     <summary>All checks in this period</summary>
     <div class="table-responsive mt-2">
         <table class="table table-sm align-middle">
-            <thead><tr><th>Time</th><th class="text-end">Battery</th><th class="text-end">Volts</th><th>How</th></tr></thead>
+            <thead><tr><th>Time</th><th class="text-end">Battery</th><th class="text-end">Volts</th>@if (temps.Count > 0) { <th class="text-end">Temp</th> }<th>How</th></tr></thead>
             <tbody>
                 @foreach (var r in h.Readings.Reverse())
                 {
@@ -103,6 +135,7 @@
                         <td><partial name="_Time" model="@((DateTimeOffset?)r.At)" /></td>
                         <td class="text-end">@(r.Percent is { } p ? $"{p}%" : "—")</td>
                         <td class="text-end">@(r.Volts?.ToString("0.000") ?? "—")</td>
+                        @if (temps.Count > 0) { <td class="text-end">@(r.TemperatureC is { } t ? $"{t:0.0} °C" : "—")</td> }
                         <td>@r.Note</td>
                     </tr>
                 }

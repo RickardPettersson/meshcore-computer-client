@@ -21,6 +21,9 @@
             <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3" asp-controller="Device" asp-action="Index">
                 <i class="bi bi-cpu fs-5" aria-hidden="true"></i><span class="me-auto">Device</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
             </a>
+            <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3" asp-controller="Battery" asp-action="Index">
+                <i class="bi bi-battery-half fs-5" aria-hidden="true"></i><span class="me-auto">My devices</span><i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </a>
             @if (isAdmin)
             {
                 <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3" asp-action="Users">

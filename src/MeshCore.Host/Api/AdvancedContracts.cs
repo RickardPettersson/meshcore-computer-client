@@ -68,21 +68,25 @@ public sealed record LoginResponse(bool Success, bool IsAdmin, DateTimeOffset? S
 public sealed record RepeaterStatsResponse(
     double BatteryVolts, int TxQueueLength, int NoiseFloorDbm, int LastRssiDbm, double LastSnrDb,
     uint PacketsReceived, uint PacketsSent, uint SentFlood, uint SentDirect, uint ReceivedFlood, uint ReceivedDirect,
-    int DirectDuplicates, int FloodDuplicates, int ErrorEvents, double UptimeHours, double AirTimeMinutes, double? RxAirTimeMinutes, uint? ReceiveErrors)
+    int DirectDuplicates, int FloodDuplicates, int ErrorEvents, double UptimeHours, double AirTimeMinutes, double? RxAirTimeMinutes, uint? ReceiveErrors,
+    int? BatteryPercent = null)
 {
     public static RepeaterStatsResponse From(RepeaterStats s) => new(
         s.BatteryMillivolts / 1000.0, s.TxQueueLength, s.NoiseFloor, s.LastRssi, s.LastSnr,
         s.PacketsReceived, s.PacketsSent, s.SentFlood, s.SentDirect, s.ReceivedFlood, s.ReceivedDirect,
         s.DirectDuplicates, s.FloodDuplicates, s.ErrorEvents, Math.Round(s.Uptime.TotalHours, 2), Math.Round(s.AirTime.TotalMinutes, 1),
-        s.RxAirTime is { } rx ? Math.Round(rx.TotalMinutes, 1) : null, s.ReceiveErrors);
+        s.RxAirTime is { } rx ? Math.Round(rx.TotalMinutes, 1) : null, s.ReceiveErrors, BatteryLevel.Percent(s.BatteryMillivolts));
 }
 
 /// <param name="Stats">Decoded when it's a repeater; null for other node types (see <paramref name="RawHex"/>).</param>
 public sealed record StatusResponse(RepeaterStatsResponse? Stats, string RawHex);
 
-public sealed record TelemetryReadingResponse(int Channel, string Name, IReadOnlyList<double> Values, string Unit, string Display)
+/// <param name="BatteryPercent">For the node's own voltage (LPP voltage on channel 1): the battery estimated from it, as on the
+/// Device page. Null for other readings, e.g. a voltage sensor on another channel.</param>
+public sealed record TelemetryReadingResponse(int Channel, string Name, IReadOnlyList<double> Values, string Unit, string Display, int? BatteryPercent = null)
 {
-    public static TelemetryReadingResponse From(LppReading r) => new(r.Channel, r.Name, r.Values, r.Unit, r.ToString());
+    public static TelemetryReadingResponse From(LppReading r) => new(r.Channel, r.Name, r.Values, r.Unit, r.ToString(),
+        r is { Type: 116, Channel: 1, Values: [> 0 and var volts, ..] } ? BatteryLevel.Percent((int)Math.Round(volts * 1000)) : null);
 }
 
 public sealed record TelemetryResponse(IReadOnlyList<TelemetryReadingResponse> Readings, string RawHex);

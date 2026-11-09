@@ -61,9 +61,10 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
    Uploads aren't listed anywhere, but **anyone with the link can open it**, and messages in the Public channel can be read by
    everyone on the mesh. Choose how long photos are kept under the message box. See [setup](docs/SETUP.md#images).
 7. Web addresses in messages are links that open in a new tab.
-8. **Battery:** shown as % and volts (Device page, dashboard). Mark contacts as **My device** (contact page) and the app checks
-   their battery once an hour, together with this radio's. **Device → My devices** shows each one, and a graph per device
-   (24 h to 90 days) with the checks that got no answer, so you can tell a flat battery from a device that's gone for another reason.
+8. **Battery:** shown as % and volts (Device page, dashboard, and a contact's status and telemetry). Mark contacts as **My device**
+   (contact page) and the app checks their battery and temperature once an hour, together with this radio's battery. **My devices**
+   in the menu shows each one, and graphs per device (24 h to 90 days) with the checks that got no answer, so you can tell a flat
+   battery from a device that's gone for another reason.
    See [setup](docs/SETUP.md#battery-history).
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.

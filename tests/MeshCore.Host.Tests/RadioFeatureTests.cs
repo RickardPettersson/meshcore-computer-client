@@ -108,7 +108,9 @@ public class RadioFeatureTests
         Assert.True(login.GetProperty("isAdmin").GetBoolean());
         Assert.Equal(4.12, status.GetProperty("stats").GetProperty("batteryVolts").GetDouble(), 2);
         Assert.Equal(-118, status.GetProperty("stats").GetProperty("noiseFloorDbm").GetInt32());
-        Assert.Contains(telemetry.GetProperty("readings").EnumerateArray(), r => r.GetProperty("display").GetString() == "Temperature: 21.5 °C");
+        // The simulator's temperature drifts between 12 and 24 °C over the day.
+        Assert.Contains(telemetry.GetProperty("readings").EnumerateArray(),
+            r => r.GetProperty("name").GetString() == "Temperature" && r.GetProperty("values")[0].GetDouble() is >= 12 and <= 24);
         Assert.Equal("50", Assert.Single(trace.GetProperty("hops").EnumerateArray()).GetProperty("hash").GetString());
         Assert.Equal(6.0, trace.GetProperty("finalSnrDb").GetDouble());
     }

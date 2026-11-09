@@ -1,5 +1,7 @@
 @model BatteryResponse
-@* Battery as "82% (4.050 V)" with a small level bar. The percentage is estimated from the voltage. *@
+@* Battery as "82% (4.050 V)" with a small level bar. The percentage is estimated from the voltage.
+   ViewData["BatteryHistoryNode"]: the node whose battery history the % links to ("self" by default; "" for no link). *@
+@{ var historyNode = ViewData["BatteryHistoryNode"] as string ?? "self"; }
 @if (Model.Percent is { } pct)
 {
     var icon = pct switch
@@ -10,7 +12,14 @@
     };
     <span title="Estimated from the voltage (single-cell Li-ion). It reads high while charging and dips while transmitting.">
         <i class="bi @icon" aria-hidden="true"></i>
-        <a class="fw-semibold" asp-controller="Battery" asp-action="History" asp-route-node="self" title="Battery history">@pct%</a>
+        @if (historyNode.Length > 0)
+        {
+            <a class="fw-semibold" asp-controller="Battery" asp-action="History" asp-route-node="@historyNode" title="Battery history">@pct%</a>
+        }
+        else
+        {
+            <span class="fw-semibold">@pct%</span>
+        }
         <span class="text-body-secondary">(@Model.Volts.ToString("0.000") V)</span>
     </span>
     @* <meter> colours itself: red below "low", yellow below "high", green above. No inline styles (CSP). *@

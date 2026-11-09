@@ -184,4 +184,7 @@ body {
 .app-bchart-x { padding: 0 9% 0 10%; } /* lines up with the plot area (BatteryChart Left/Right) */
 .app-bchart-key { display: inline-block; width: 1.2em; height: .35em; vertical-align: middle; border-radius: .2em; }
 .app-bchart-key.line { background: var(--bs-success); }
+.app-bchart .tline { fill: none; stroke: var(--bs-warning); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.app-bchart .tdot { fill: var(--bs-warning); }
+.app-bchart-key.tline { background: var(--bs-warning); }
 .app-bchart-key.miss { background: var(--bs-danger); width: .45em; height: .8em; }

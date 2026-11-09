@@ -130,7 +130,9 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
                 {
                     // LPP: ch1 voltage (0.01 V units, drifting over the day), ch1 temperature 21.5 °C (big-endian values)
                     var centivolts = (ushort)(SimulatedMillivolts(telemetryNode.Seed, 3950, 180) / 10);
-                    _ = PushLaterAsync(Concat([0x8B, 0], Key(telemetryNode.Seed)[..6], [1, 116, (byte)(centivolts >> 8), (byte)centivolts, 1, 103, 0x00, 0xD7]));
+                    var decidegrees = (short)SimulatedMillivolts((byte)(telemetryNode.Seed + 2), 180, 60); // 12–24 °C over the day
+                    _ = PushLaterAsync(Concat([0x8B, 0], Key(telemetryNode.Seed)[..6],
+                        [1, 116, (byte)(centivolts >> 8), (byte)centivolts, 1, 103, (byte)(decidegrees >> 8), (byte)decidegrees]));
                 }
                 break;
             case CommandCode.SendTracePath:

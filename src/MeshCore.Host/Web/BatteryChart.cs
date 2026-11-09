@@ -96,4 +96,80 @@ public static class BatteryChart
         svg.Append("</svg>");
         return new HtmlString(svg.ToString());
     }
+
+    /// <summary>
+    /// The temperatures the device reported with its battery, on the same time axis as <see cref="Render"/>.
+    /// The line breaks where a check has no temperature or a check is missing.
+    /// </summary>
+    public static IHtmlContent RenderTemperature(IReadOnlyList<BatteryReadingResponse> readings, DateTimeOffset since, DateTimeOffset now, TimeSpan interval)
+    {
+        ArgumentNullException.ThrowIfNull(readings);
+        const double TBottom = 150;
+        var withTemp = readings.Where(r => r.TemperatureC is not null).ToList();
+        if (withTemp.Count == 0)
+        {
+            return HtmlString.Empty;
+        }
+        // Whole 5 °C steps around the readings, at least 10 °C tall so small changes don't look dramatic.
+        var min = Math.Floor(withTemp.Min(r => r.TemperatureC!.Value) / 5) * 5;
+        var max = Math.Ceiling(withTemp.Max(r => r.TemperatureC!.Value) / 5) * 5;
+        if (max - min < 10)
+        {
+            max = min + 10;
+        }
+        var span = Math.Max(1, (now - since).TotalSeconds);
+
+        double X(DateTimeOffset at) => Left + Math.Clamp((at - since).TotalSeconds / span, 0, 1) * (Right - Left);
+        double Y(double c) => TBottom - (c - min) / (max - min) * (TBottom - Top);
+        static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+
+        var svg = new StringBuilder();
+        svg.Append(CultureInfo.InvariantCulture, $"<svg class=\"app-bchart app-tchart\" viewBox=\"0 0 {Width} {TBottom + 10}\" role=\"img\" aria-labelledby=\"tchart-title\">");
+        svg.Append(CultureInfo.InvariantCulture,
+            $"<title id=\"tchart-title\">Temperature, {withTemp.Count} reading(s), {withTemp.Min(r => r.TemperatureC):0.0} to {withTemp.Max(r => r.TemperatureC):0.0} °C</title>");
+        var step = max - min > 30 ? 10 : 5;
+        for (var c = min; c <= max; c += step)
+        {
+            var y = F(Y(c));
+            svg.Append(CultureInfo.InvariantCulture, $"<line class=\"grid\" x1=\"{Left}\" x2=\"{Right}\" y1=\"{y}\" y2=\"{y}\"/>");
+            svg.Append(CultureInfo.InvariantCulture, $"<text class=\"axis\" x=\"{Left - 6}\" y=\"{y}\" text-anchor=\"end\" dominant-baseline=\"middle\">{c:0} °C</text>");
+        }
+        svg.Append(CultureInfo.InvariantCulture, $"<line class=\"frame\" x1=\"{Left}\" x2=\"{Right}\" y1=\"{TBottom}\" y2=\"{TBottom}\"/>");
+
+        var segment = new List<BatteryReadingResponse>();
+        void Flush()
+        {
+            if (segment.Count > 1)
+            {
+                svg.Append("<polyline class=\"tline\" points=\"")
+                    .AppendJoin(' ', segment.Select(r => $"{F(X(r.At))},{F(Y(r.TemperatureC!.Value))}"))
+                    .Append("\"/>");
+            }
+            segment.Clear();
+        }
+        BatteryReadingResponse? previous = null;
+        foreach (var r in readings)
+        {
+            if (r.TemperatureC is null || (previous is not null && r.At - previous.At > interval * 2.5))
+            {
+                Flush();
+            }
+            if (r.TemperatureC is not null)
+            {
+                segment.Add(r);
+            }
+            previous = r;
+        }
+        Flush();
+        if (withTemp.Count <= 200)
+        {
+            foreach (var r in withTemp)
+            {
+                svg.Append(CultureInfo.InvariantCulture,
+                    $"<circle class=\"tdot\" cx=\"{F(X(r.At))}\" cy=\"{F(Y(r.TemperatureC!.Value))}\" r=\"3\"><title>{r.TemperatureC:0.0} °C</title></circle>");
+            }
+        }
+        svg.Append("</svg>");
+        return new HtmlString(svg.ToString());
+    }
 }

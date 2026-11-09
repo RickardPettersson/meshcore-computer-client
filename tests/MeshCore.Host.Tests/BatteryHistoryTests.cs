@@ -98,6 +98,8 @@ public class BatteryLogTests
         Assert.Equal(95, devices[1].GetProperty("latest").GetProperty("percent").GetInt32()); // 4.15 V
         var reading = Assert.Single(history.GetProperty("readings").EnumerateArray());
         Assert.Equal("telemetry", reading.GetProperty("note").GetString());
+        Assert.Equal(21.5, reading.GetProperty("temperatureC").GetDouble());                  // from the same telemetry answer
+        Assert.Equal(JsonValueKind.Null, devices[0].GetProperty("latest").GetProperty("temperatureC").ValueKind); // this radio: none
         Assert.Equal("Alice", history.GetProperty("device").GetProperty("name").GetString());
     }
 
@@ -135,6 +137,29 @@ public class BatteryLogTests
     [InlineData(new byte[] { 1, 103, 0x00, 0xD7 }, null)]                     // temperature only
     public void Voltage_is_taken_from_the_telemetry(byte[] lpp, int? millivolts) =>
         Assert.Equal(millivolts, BatteryLogService.VoltageOf(CayenneLpp.Decode(lpp)));
+
+    [Theory]
+    [InlineData(new byte[] { 1, 103, 0x00, 0xD7 }, 21.5)]
+    [InlineData(new byte[] { 2, 103, 0x00, 0x64, 1, 103, 0xFF, 0x9C }, -10.0)] // channel 1 (the node itself) wins; below zero works
+    [InlineData(new byte[] { 2, 103, 0x00, 0x64 }, 10.0)]                      // else the first temperature
+    [InlineData(new byte[] { 1, 116, 0x01, 0x9F }, null)]                      // voltage only
+    public void Temperature_is_taken_from_the_telemetry(byte[] lpp, double? celsius) =>
+        Assert.Equal(celsius, BatteryLogService.TemperatureOf(CayenneLpp.Decode(lpp)));
+
+    [Fact]
+    public void Telemetry_shows_battery_percent_for_the_nodes_own_voltage_only()
+    {
+        // ch 1 voltage 4.10 V (the node's battery), ch 2 voltage 3.20 V (another sensor), ch 1 temperature 21.5 °C.
+        var readings = CayenneLpp.Decode([1, 116, 0x01, 0x9A, 2, 116, 0x01, 0x40, 1, 103, 0x00, 0xD7]).Select(TelemetryReadingResponse.From).ToList();
+        Assert.Equal([BatteryLevel.Percent(4100), null, null], readings.Select(r => r.BatteryPercent));
+    }
+
+    [Fact]
+    public void Repeater_status_shows_battery_percent()
+    {
+        var stats = Assert.IsType<StatusResponsePush>(FrameParser.Parse(Concat([0x87, 0], Key(10)[..6], [0xD4, 0x0D], new byte[54]))).Stats;
+        Assert.Equal(BatteryLevel.Percent(3540), RepeaterStatsResponse.From(stats!).BatteryPercent);
+    }
 }
 
 public class BatteryWebTests
@@ -155,10 +180,10 @@ public class BatteryWebTests
         var before = await browser.PageAsync($"/Contacts/Details/{Alice}");
         var mark = await browser.SubmitAsync($"/Contacts/Details/{Alice}", "/Contacts/Mine", ("key", Alice), ("mine", "true"));
         var store = app.Services.GetRequiredService<MeshStore>();
-        await store.AddBatteryReadingAsync(Alice, 4100, "telemetry");
+        await store.AddBatteryReadingAsync(Alice, 4100, 19.04, "telemetry", default);
         await store.AddBatteryReadingAsync(Alice, null, "no answer");
-        await store.AddBatteryReadingAsync(Alice, 4150, "telemetry");
-        await store.AddBatteryReadingAsync(Alice, 4140, "telemetry");
+        await store.AddBatteryReadingAsync(Alice, 4150, 20.5, "telemetry", default);
+        await store.AddBatteryReadingAsync(Alice, 4140, 21.25, "telemetry", default);
         var after = await browser.PageAsync($"/Contacts/Details/{Alice}");
         var list = await browser.PageAsync("/Battery");
         var graph = await browser.PageAsync($"/Battery/History?node={Alice}&days=1");
@@ -172,6 +197,33 @@ public class BatteryWebTests
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(graph, "<polyline class=\"line\""));  // 4.15 → 4.14 (the first point stands alone)
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(graph, "<rect class=\"miss\""));
         Assert.Contains("1 without an answer", graph, StringComparison.Ordinal);
+
+        // Temperature: rounded to 0.1 °C, newest shown in the list, its own graph and a table column on the history page.
+        Assert.Contains($"href=\"/Contacts/Details/{Alice}\"", list, StringComparison.Ordinal); // name opens the contact
+        Assert.Contains("21.3 °C", list, StringComparison.Ordinal);
+        Assert.Contains("<svg class=\"app-bchart app-tchart\"", graph, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(graph, "<polyline class=\"tline\""));
+        Assert.Contains("19.0 °C", graph, StringComparison.Ordinal);
+        Assert.Contains("<th class=\"text-end\">Temp</th>", graph, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task My_devices_is_in_the_menu_and_hides_temperature_when_there_is_none()
+    {
+        using var app = new ApiFactory();
+        var browser = new Browser(app);
+        await browser.SetupAsync();
+        await app.WaitForRadioAsync();
+        await app.Services.GetRequiredService<MeshStore>().AddBatteryReadingAsync(BatteryReadingEntity.Self, 4000, "radio");
+
+        var list = await browser.PageAsync("/Battery");
+        var graph = await browser.PageAsync("/Battery/History?node=self&days=1");
+
+        Assert.Contains("class=\"nav-link active\" aria-current=\"page\" href=\"/Battery\"", list, StringComparison.Ordinal);
+        Assert.Contains("href=\"/Device\"", list, StringComparison.Ordinal); // this radio's name opens the Device page
+        Assert.DoesNotContain("°C", list, StringComparison.Ordinal);
+        Assert.DoesNotContain("app-tchart", graph, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Temp</th>", graph, StringComparison.Ordinal);
     }
 
     [Fact]

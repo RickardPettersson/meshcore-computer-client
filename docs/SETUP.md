@@ -77,7 +77,8 @@ Want to skip installing the certificate? Phones can accept the browser warning i
 ## Battery history
 
 The app records the battery of **this radio** and of every contact you mark as **My device** (open the contact → *Mark as my
-device*; Admin only). **Device → My devices** lists them; tap one for a graph over 24 hours to 90 days.
+device*; Admin only). **My devices** in the menu lists them with the last check, battery and temperature. Tap a name to open the
+contact (or the Device page for this radio), or its battery for graphs over 24 hours to 90 days.
 
 - **How often:** once an hour (`BatteryLog:Interval`). The schedule follows the last check, so restarting the app doesn't cause
   extra checks. Admins can press **Check now**.
@@ -87,6 +88,8 @@ device*; Admin only). **Device → My devices** lists them; tap one for a graph 
   node as a favourite there. Otherwise every check shows as "refused" or "no answer".
 - **No answer is recorded too.** A line that slopes down and then stops points to a flat battery. A steady line that suddenly turns
   into "no answer" points to something else: power, a reboot, range or the route.
+- **Temperature** is recorded when the device sends one in its telemetry (most boards measure their own temperature, so it reads
+  a little above the air around it). This radio's own temperature isn't available.
 - **Percent** is estimated from the voltage with a single-cell Li-ion curve. It reads high while charging and dips while transmitting.
 - **Storage:** readings older than 90 days are deleted (`BatteryLog:Retention`). Unmarking a device keeps its history.
 

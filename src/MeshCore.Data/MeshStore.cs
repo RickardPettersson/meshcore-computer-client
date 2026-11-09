@@ -115,7 +115,12 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
     // ---- Battery history ------------------------------------------------------
 
     /// <summary>Stores one battery check; <paramref name="millivolts"/> null = the node didn't answer.</summary>
-    public async Task<BatteryReadingEntity> AddBatteryReadingAsync(string node, int? millivolts, string? note, CancellationToken cancellationToken = default)
+    public Task<BatteryReadingEntity> AddBatteryReadingAsync(string node, int? millivolts, string? note, CancellationToken cancellationToken = default) =>
+        AddBatteryReadingAsync(node, millivolts, null, note, cancellationToken);
+
+    /// <summary>Stores one battery check, with the temperature the node reported along with it (if any).</summary>
+    public async Task<BatteryReadingEntity> AddBatteryReadingAsync(string node, int? millivolts, double? temperatureC, string? note,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(node);
         await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -124,6 +129,7 @@ public sealed class MeshStore(IDbContextFactory<MeshDbContext> contextFactory, T
             Node = node.ToLowerInvariant(),
             At = _time.GetUtcNow(),
             Millivolts = millivolts,
+            TemperatureC = temperatureC is { } t ? Math.Round(t, 1, MidpointRounding.AwayFromZero) : null,
             Note = note is { Length: > 64 } ? note[..64] : note,
         };
         db.BatteryReadings.Add(row);

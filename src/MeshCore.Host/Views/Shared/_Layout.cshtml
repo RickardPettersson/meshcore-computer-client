@@ -43,6 +43,7 @@
                 <li class="nav-item"><a class="nav-link @Active("Contacts")" aria-current="@Current("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i> Contacts</a></li>
                 <li class="nav-item"><a class="nav-link @Active("Channels")" aria-current="@Current("Channels")" asp-controller="Channels" asp-action="Index"><i class="bi bi-hash" aria-hidden="true"></i> Channels</a></li>
                 <li class="nav-item"><a class="nav-link @Active("Device")" aria-current="@Current("Device")" asp-controller="Device" asp-action="Index"><i class="bi bi-cpu" aria-hidden="true"></i> Device</a></li>
+                <li class="nav-item"><a class="nav-link @Active("Battery")" aria-current="@Current("Battery")" asp-controller="Battery" asp-action="Index"><i class="bi bi-battery-half" aria-hidden="true"></i> My devices</a></li>
                 <li class="nav-item"><a class="nav-link @(section == "Settings" && !usersPage ? "active" : "")" aria-current="@(section == "Settings" && !usersPage ? "page" : "false")" asp-controller="Settings" asp-action="Index"><i class="bi bi-gear" aria-hidden="true"></i> Settings</a></li>
                 @if (isAdmin)
                 {
@@ -86,7 +87,7 @@
             <a class="app-tab @Active("Messages")" aria-current="@Current("Messages")" asp-controller="Messages" asp-action="Index"><span class="position-relative"><i class="bi bi-chat-dots" aria-hidden="true"></i><span class="app-tab-badge">@await Component.InvokeAsync("UnreadBadge")</span></span><span>Chats</span></a>
             <a class="app-tab @Active("Contacts")" aria-current="@Current("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i><span>Contacts</span></a>
             <a class="app-tab @Active("Channels")" aria-current="@Current("Channels")" asp-controller="Channels" asp-action="Index"><i class="bi bi-hash" aria-hidden="true"></i><span>Channels</span></a>
-            <a class="app-tab @Active("Settings", "Device")" aria-current="@Current("Settings", "Device")" asp-controller="Settings" asp-action="Index"><i class="bi bi-three-dots" aria-hidden="true"></i><span>More</span></a>
+            <a class="app-tab @Active("Settings", "Device", "Battery")" aria-current="@Current("Settings", "Device", "Battery")" asp-controller="Settings" asp-action="Index"><i class="bi bi-three-dots" aria-hidden="true"></i><span>More</span></a>
         </nav>
     }
 

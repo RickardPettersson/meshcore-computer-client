@@ -100,6 +100,9 @@ public sealed class BatteryReadingEntity
 
     public int? Millivolts { get; set; }
 
+    /// <summary>The node's temperature in °C, when its telemetry included one (null for this radio and for status checks).</summary>
+    public double? TemperatureC { get; set; }
+
     /// <summary>How it was read (<c>radio</c>, <c>telemetry</c>, <c>status</c>) or why it failed (<c>no answer</c>, …).</summary>
     public string? Note { get; set; }
 }

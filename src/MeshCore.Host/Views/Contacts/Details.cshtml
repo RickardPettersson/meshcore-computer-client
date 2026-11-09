@@ -110,7 +110,7 @@
                 @if (status.Stats is { } s)
                 {
                     <dl class="row mb-0 small">
-                        <dt class="col-6">Battery</dt><dd class="col-6">@s.BatteryVolts.ToString("0.00") V</dd>
+                        <dt class="col-6">Battery</dt><dd class="col-6"><partial name="_BatteryLevel" model="BatteryOf(s.BatteryVolts, s.BatteryPercent)" view-data="BatteryViewData()" /></dd>
                         <dt class="col-6">Uptime</dt><dd class="col-6">@TimeSpan.FromHours(s.UptimeHours).ToString(@"d\d\ hh\h\ mm\m")</dd>
                         <dt class="col-6">Noise floor</dt><dd class="col-6">@s.NoiseFloorDbm dBm</dd>
                         <dt class="col-6">Last RSSI / SNR</dt><dd class="col-6">@s.LastRssiDbm dBm / @s.LastSnrDb.ToString("0.0") dB</dd>
@@ -144,7 +144,12 @@
                     <ul class="list-unstyled mb-0">
                         @foreach (var r in telemetry.Readings)
                         {
-                            <li><span class="text-body-secondary small">ch @r.Channel</span> @r.Display</li>
+                            <li><span class="text-body-secondary small">ch @r.Channel</span> @r.Display
+                                @if (r.BatteryPercent is not null)
+                                {
+                                    <div class="small mb-1">Battery: <partial name="_BatteryLevel" model="BatteryOf(r.Values[0], r.BatteryPercent)" view-data="BatteryViewData()" /></div>
+                                }
+                            </li>
                         }
                     </ul>
                 }
@@ -180,3 +185,12 @@
         </div>
     }
 </div>
+
+@functions {
+    // The status and telemetry battery, shown like the Device page: "32% (3.540 V)" with a level bar.
+    private static BatteryResponse BatteryOf(double volts, int? percent) => new((int)Math.Round(volts * 1000), volts, null, null, percent);
+
+    // The % links to the battery history when this contact is one of "my devices" (only those have one).
+    private ViewDataDictionary BatteryViewData() =>
+        new(ViewData) { ["BatteryHistoryNode"] = Model.Contact.IsMine ? Model.Contact.PublicKey : "" };
+}

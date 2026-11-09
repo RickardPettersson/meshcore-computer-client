@@ -10,10 +10,11 @@ namespace MeshCore.Host.Api;
 
 /// <param name="Millivolts">Null when the device didn't answer.</param>
 /// <param name="Note">How it was read (<c>radio</c>, <c>telemetry</c>, <c>status</c>) or why not (<c>no answer</c>, …).</param>
-public sealed record BatteryReadingResponse(DateTimeOffset At, int? Millivolts, double? Volts, int? Percent, string? Note)
+/// <param name="TemperatureC">The temperature in the same telemetry answer, in °C; null when there was none.</param>
+public sealed record BatteryReadingResponse(DateTimeOffset At, int? Millivolts, double? Volts, int? Percent, string? Note, double? TemperatureC = null)
 {
     public static BatteryReadingResponse From(BatteryReadingEntity r) =>
-        new(r.At, r.Millivolts, r.Millivolts / 1000.0, r.Millivolts is { } mv ? BatteryLevel.Percent(mv) : null, r.Note);
+        new(r.At, r.Millivolts, r.Millivolts / 1000.0, r.Millivolts is { } mv ? BatteryLevel.Percent(mv) : null, r.Note, r.TemperatureC);
 }
 
 /// <param name="Node"><c>self</c> for this radio, else the contact's public key.</param>

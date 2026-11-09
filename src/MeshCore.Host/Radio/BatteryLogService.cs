@@ -121,12 +121,14 @@ public sealed partial class BatteryLogService(
     {
         var key = PublicKey.Parse(contact.PublicKey);
         string note;
+        double? temperature = null; // kept from the telemetry answer, whichever way the battery is read
         try
         {
             var telemetry = await radio.RequestTelemetryAsync(key, ct);
+            temperature = TemperatureOf(telemetry.Readings);
             if (VoltageOf(telemetry.Readings) is { } mv)
             {
-                await store.AddBatteryReadingAsync(contact.PublicKey, mv, "telemetry", ct);
+                await store.AddBatteryReadingAsync(contact.PublicKey, mv, temperature, "telemetry", ct);
                 return;
             }
             note = "no voltage in telemetry";
@@ -144,7 +146,7 @@ public sealed partial class BatteryLogService(
                 var status = await radio.RequestStatusAsync(key, ct);
                 if (status.Stats is { BatteryMillivolts: > 0 } stats)
                 {
-                    await store.AddBatteryReadingAsync(contact.PublicKey, stats.BatteryMillivolts, "status", ct);
+                    await store.AddBatteryReadingAsync(contact.PublicKey, stats.BatteryMillivolts, temperature, "status", ct);
                     return;
                 }
             }
@@ -154,7 +156,7 @@ public sealed partial class BatteryLogService(
             }
         }
         LogNoAnswer(contact.Name, note);
-        await store.AddBatteryReadingAsync(contact.PublicKey, null, note, ct);
+        await store.AddBatteryReadingAsync(contact.PublicKey, null, temperature, note, ct);
     }
 
     /// <summary>The node's own voltage: LPP type 116 on channel 1 (MeshCore's "self" channel), else the first one.</summary>
@@ -162,6 +164,13 @@ public sealed partial class BatteryLogService(
     {
         var voltage = readings.FirstOrDefault(r => r.Type == 116 && r.Channel == 1) ?? readings.FirstOrDefault(r => r.Type == 116);
         return voltage is { Values.Count: > 0 } v && v.Values[0] > 0 ? (int)Math.Round(v.Values[0] * 1000) : null;
+    }
+
+    /// <summary>The node's own temperature: LPP type 103 on channel 1 (MeshCore's "self" channel), else the first one.</summary>
+    internal static double? TemperatureOf(IReadOnlyList<LppReading> readings)
+    {
+        var temperature = readings.FirstOrDefault(r => r.Type == 103 && r.Channel == 1) ?? readings.FirstOrDefault(r => r.Type == 103);
+        return temperature is { Values.Count: > 0 } t ? t.Values[0] : null;
     }
 
     private static string Reason(Exception ex) => ex switch
