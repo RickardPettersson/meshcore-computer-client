@@ -196,11 +196,11 @@ function Test-DebInstall([string] $deb, [string] $package) {
             throw "Install test failed: the service didn't report a connected (simulated) radio within 60 s"
         }
         # Default settings: port 5080 redirects to HTTPS on 5443, with the certificate the app makes itself (so the service
-        # could write it). This runs on Linux only, so pwsh 7's -SkipCertificateCheck is there.
-        $redirect = Invoke-WebRequest "http://127.0.0.1:5080/" -TimeoutSec 10 -MaximumRedirection 0 -SkipHttpErrorCheck
-        if ([int] $redirect.StatusCode -notin 301, 302, 307, 308) { throw "Install test failed: port 5080 answered $($redirect.StatusCode), not a redirect to HTTPS" }
-        $page = Invoke-WebRequest "https://127.0.0.1:5443/" -TimeoutSec 10 -SkipCertificateCheck
-        if ($page.StatusCode -ne 200) { throw "Install test failed: the HTTPS website answered $($page.StatusCode)" }
+        # could write it). curl, because pwsh's Invoke-WebRequest -MaximumRedirection 0 throws on some versions.
+        $redirect = curl -s -o /dev/null -m 10 -w "%{http_code} %{redirect_url}" "http://127.0.0.1:5080/"
+        if ($redirect -notmatch '^30[1278] https://') { throw "Install test failed: port 5080 answered '$redirect', not a redirect to HTTPS" }
+        $page = curl -s -o /dev/null -m 10 -k -L -w "%{http_code}" "https://127.0.0.1:5443/"
+        if ($page -ne "200") { throw "Install test failed: the HTTPS website answered '$page'" }
         if (-not (Test-RootFile "/var/lib/$package/meshcore.db")) { throw "Install test failed: no database in /var/lib/$package" }
         meshcore-cli --help | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Install test failed: meshcore-cli isn't on the PATH" }
