@@ -195,12 +195,16 @@ function Test-DebInstall([string] $deb, [string] $package) {
             sudo journalctl -u $unit --no-pager -n 60 | Out-Host
             throw "Install test failed: the service didn't report a connected (simulated) radio within 60 s"
         }
-        $page = Invoke-WebRequest "http://127.0.0.1:5080/" -TimeoutSec 10
-        if ($page.StatusCode -ne 200) { throw "Install test failed: the website answered $($page.StatusCode)" }
+        # Default settings: port 5080 redirects to HTTPS on 5443, with the certificate the app makes itself (so the service
+        # could write it). This runs on Linux only, so pwsh 7's -SkipCertificateCheck is there.
+        $redirect = Invoke-WebRequest "http://127.0.0.1:5080/" -TimeoutSec 10 -MaximumRedirection 0 -SkipHttpErrorCheck
+        if ([int] $redirect.StatusCode -notin 301, 302, 307, 308) { throw "Install test failed: port 5080 answered $($redirect.StatusCode), not a redirect to HTTPS" }
+        $page = Invoke-WebRequest "https://127.0.0.1:5443/" -TimeoutSec 10 -SkipCertificateCheck
+        if ($page.StatusCode -ne 200) { throw "Install test failed: the HTTPS website answered $($page.StatusCode)" }
         if (-not (Test-RootFile "/var/lib/$package/meshcore.db")) { throw "Install test failed: no database in /var/lib/$package" }
         meshcore-cli --help | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Install test failed: meshcore-cli isn't on the PATH" }
-        Write-Host "    Service running as $(systemctl show -p User --value $unit), website up, data in /var/lib/$package, meshcore-cli on the PATH"
+        Write-Host "    Service running as $(systemctl show -p User --value $unit), HTTP redirects to HTTPS, website up, data in /var/lib/$package, meshcore-cli on the PATH"
     } finally {
         sudo rm -rf "/etc/systemd/system/$unit.d"
     }
