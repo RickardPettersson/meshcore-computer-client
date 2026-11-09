@@ -7,6 +7,7 @@
 # Each platform is built on its own kind of runner, so its package can be smoke-tested there (the app starts with the
 # simulator and its native libraries load) and macOS builds get signed (Apple silicon refuses unsigned code).
 name: Release
+run-name: Release ${{ inputs.version || github.ref_name }}
 
 on:
   push:
@@ -31,7 +32,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
-      fail-fast: true
+      fail-fast: false # see every platform's result; the release job still needs all of them
       matrix:
         include:
           # deb: also build the .deb, install it on the runner, check the service, then remove and purge it.
@@ -55,7 +56,8 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          $v = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME -replace '^v', '' } else { $env:INPUT_VERSION }
+          $v = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $env:INPUT_VERSION }
+          $v = $v.Trim() -replace '^v', ''
           "version=$v" >> $env:GITHUB_OUTPUT
           Write-Host "Version $v"
 
@@ -66,7 +68,14 @@ jobs:
           $flags = @{}
           if ('${{ matrix.tests }}' -ne 'true') { $flags.SkipTests = $true } # the tests run once, on Windows
           if ('${{ matrix.deb }}' -eq 'true') { $flags.TestDebInstall = $true }
-          ./build/package.ps1 -Version "${{ steps.version.outputs.version }}" -Runtime ${{ matrix.runtime }} @flags
+          try {
+            ./build/package.ps1 -Version "${{ steps.version.outputs.version }}" -Runtime ${{ matrix.runtime }} @flags
+          } catch {
+            # As an annotation, so the reason shows on the run page without signing in to read the log.
+            $where = ($_.ScriptStackTrace -split "`n" | Select-Object -First 3) -join ' <- '
+            Write-Host "::error title=${{ matrix.runtime }} package failed::$($_.Exception.Message) [$where]"
+            throw
+          }
 
       - name: Keep the package as a workflow artifact
         uses: actions/upload-artifact@v5
