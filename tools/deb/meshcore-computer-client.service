@@ -1,0 +1,34 @@
+# systemd unit installed by the .deb package (Ubuntu, Debian, Raspberry Pi OS).
+# Settings: /etc/meshcore-computer-client/appsettings.json    Data and logs: /var/lib/meshcore-computer-client
+# Change something without editing this file: sudo systemctl edit meshcore-computer-client
+[Unit]
+Description=MeshCore Computer Client (MeshCore companion radio: website and REST API)
+Documentation=https://github.com/RickardPettersson/meshcore-computer-client/blob/main/docs/install-linux.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=meshcore
+Group=meshcore
+ExecStart=/opt/meshcore-computer-client/MeshCore.Host
+WorkingDirectory=/var/lib/meshcore-computer-client
+StateDirectory=meshcore-computer-client
+StateDirectoryMode=0750
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=MeshCore__DataDirectory=/var/lib/meshcore-computer-client
+Environment=DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/lib/meshcore-computer-client/.net
+Restart=on-failure
+RestartSec=10
+
+# The app only writes to its data folder. (No PrivateDevices: USB radios are serial devices.)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

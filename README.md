@@ -6,19 +6,24 @@ responsive website (see [docs/PLAN.md](docs/PLAN.md)).
 
 **Status:** all 8 planned phases done. See [docs/STATUS.md](docs/STATUS.md) for progress, tested hardware and code size.
 
-**Installing it for real?** On Windows, download the zip from [Releases](https://github.com/RickardPettersson/meshcore-computer-client/releases):
-no .NET needed. Then follow the [setup guide](docs/SETUP.md) to set it up, add HTTPS for phones, and run it as a service.
+**Installing it for real?** Download the package for your computer from
+[Releases](https://github.com/RickardPettersson/meshcore-computer-client/releases) (no .NET needed) and follow its guide:
+[Windows](docs/install-windows.md), [Linux](docs/install-linux.md) (a `.deb` for Ubuntu, Debian and Raspberry Pi OS, or a `.tar.gz`)
+or [macOS](docs/install-macos.md) (Apple silicon or Intel). The [setup guide](docs/SETUP.md) covers settings, HTTPS for phones and backups.
 
 **Radio:** a Heltec V4 over WiFi works well. [docs/HELTEC-V4-WIFI.md](docs/HELTEC-V4-WIFI.md) shows how to build and flash the WiFi companion firmware.
 
-**Releases** are built by GitHub Actions ([release.yml](.github/workflows/release.yml)) when a version tag is pushed:
+**Releases** are built by GitHub Actions ([release.yml](.github/workflows/release.yml)) when a version tag is pushed.
+Each platform (`win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64`, `osx-x64`) is built and smoke-tested on its own runner,
+and the two `.deb` packages are installed, checked and purged there:
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The same build can be run by hand: `./build/package-windows.ps1 -Version 1.0.0` gives `artifacts/release/*.zip`.
+The same build can be run by hand: `./build/package.ps1 -Version 1.0.0 -Runtime linux-arm64` gives `artifacts/release/*.tar.gz`
+(`.zip` for Windows). Build macOS packages on a Mac, so they get signed.
 
 Developer reference for the radio protocol, with pinned firmware sources: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
@@ -62,7 +67,7 @@ Open **http://localhost:5080** on this computer, or **http://&lt;this computer's
    See [setup](docs/SETUP.md#battery-history).
 
 Windows may ask to allow the app through the firewall the first time, so phones can reach port 5080.
-For phones, use **HTTPS on port 5443**. The app makes its own certificate; open `/Account/Certificate` on the phone to install it (see the [setup guide](docs/SETUP.md#5-phones-https-and-install-as-app)).
+For phones, use **HTTPS on port 5443**. The app makes its own certificate; open `/Account/Certificate` on the phone to install it (see the [setup guide](docs/SETUP.md#phones-https-and-install-as-app)).
 
 | Port | What | Reachable from |
 |---|---|---|

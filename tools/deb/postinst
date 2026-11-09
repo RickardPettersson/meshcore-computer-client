@@ -1,0 +1,43 @@
+#!/bin/sh
+# After install or upgrade: service account, data folder, start the service.
+set -e
+
+NAME=meshcore-computer-client
+DATA=/var/lib/$NAME
+CONFIG=/etc/$NAME/appsettings.json
+
+if [ "$1" = "configure" ]; then
+    if ! getent passwd meshcore >/dev/null 2>&1; then
+        useradd --system --user-group --home-dir "$DATA" --no-create-home --shell /usr/sbin/nologin meshcore
+    fi
+    # USB radios: members of dialout may open serial ports.
+    if getent group dialout >/dev/null 2>&1; then
+        usermod -aG dialout meshcore
+    fi
+
+    mkdir -p "$DATA"
+    chown meshcore:meshcore "$DATA"
+    chmod 750 "$DATA"
+    # Settings may hold a certificate password: readable by root and the service only.
+    chown root:meshcore "$CONFIG"
+    chmod 640 "$CONFIG"
+
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload
+        if [ -z "$2" ]; then
+            # First install.
+            systemctl enable --now "$NAME.service"
+        else
+            # Upgrade: restart it if it was running; leave it off if you turned it off.
+            systemctl try-restart "$NAME.service"
+        fi
+    fi
+
+    if [ -z "$2" ]; then
+        echo "MeshCore Computer Client is installed and running as the $NAME service."
+        echo "  1. Set your radio in $CONFIG (MeshCore:Connection), then: sudo systemctl restart $NAME"
+        echo "  2. Open http://localhost:5080 (or http://<this computer's IP>:5080) and create the Admin account."
+    fi
+fi
+
+exit 0

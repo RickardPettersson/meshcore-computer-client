@@ -1,0 +1,16 @@
+#!/bin/sh
+# "apt remove" keeps your data (messages, users, keys, certificates) in /var/lib/meshcore-computer-client.
+# "apt purge" deletes it, and the settings in /etc/meshcore-computer-client.
+set -e
+
+NAME=meshcore-computer-client
+
+if [ "$1" = "purge" ]; then
+    rm -rf "/var/lib/$NAME" "/etc/$NAME"
+fi
+
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+fi
+
+exit 0

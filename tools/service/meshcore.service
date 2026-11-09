@@ -1,8 +1,6 @@
-# systemd unit for Linux (e.g. a Raspberry Pi). Install:
-#   sudo useradd --system --home /opt/meshcore meshcore
-#   sudo cp -r artifacts/publish/linux-arm64 /opt/meshcore && sudo chown -R meshcore /opt/meshcore
-#   sudo usermod -aG dialout meshcore        # only for USB radios
-#   sudo cp tools/service/meshcore.service /etc/systemd/system/ && sudo systemctl enable --now meshcore
+# systemd unit for Linux (e.g. a Raspberry Pi). From the unpacked release folder, install or update with:
+#   sudo ./service/install-linux-service.sh
+# which copies the app to /opt/meshcore, creates the "meshcore" user (in group dialout, for USB radios) and enables this unit.
 [Unit]
 Description=MeshCore Computer Client
 After=network-online.target

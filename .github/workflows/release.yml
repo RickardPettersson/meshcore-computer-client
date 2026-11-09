@@ -1,9 +1,12 @@
-# Builds the Windows release (single-file, self-contained: no .NET install needed to run it).
+# Builds the release for Windows, Linux and macOS (single-file, self-contained: no .NET install needed to run it).
 #
-#   Push a tag like v1.0.0  →  tests, build, and a GitHub Release with the zip attached.
-#   Run it manually (Actions tab → "Release (Windows)" → Run workflow)  →  same build, zip kept as a
-#   workflow artifact for 14 days, no release created.
-name: Release (Windows)
+#   Push a tag like v1.0.0  →  tests, a build per platform, and a GitHub Release with all packages attached.
+#   Run it manually (Actions tab → "Release" → Run workflow)  →  same builds, packages kept as workflow
+#   artifacts for 14 days, no release created. Use that to try a change to the packaging before tagging.
+#
+# Each platform is built on its own kind of runner, so its package can be smoke-tested there (the app starts with the
+# simulator and its native libraries load) and macOS builds get signed (Apple silicon refuses unsigned code).
+name: Release
 
 on:
   push:
@@ -16,16 +19,27 @@ on:
         default: "0.0.0-dev"
 
 permissions:
-  contents: write # create the release and upload its files
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  package:
+    name: ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # deb: also build the .deb, install it on the runner, check the service, then remove and purge it.
+          - { runtime: win-x64, os: windows-latest, tests: true, deb: false }
+          - { runtime: linux-x64, os: ubuntu-latest, tests: false, deb: true }
+          - { runtime: linux-arm64, os: ubuntu-24.04-arm, tests: false, deb: true } # Raspberry Pi (64-bit OS)
+          - { runtime: osx-arm64, os: macos-latest, tests: false, deb: false }      # Apple silicon
+          - { runtime: osx-x64, os: macos-latest, tests: false, deb: false }        # Intel Mac (smoke test runs under Rosetta)
     steps:
       - name: Check out
         uses: actions/checkout@v5
@@ -43,42 +57,80 @@ jobs:
         run: |
           $v = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME -replace '^v', '' } else { $env:INPUT_VERSION }
           "version=$v" >> $env:GITHUB_OUTPUT
-          "prerelease=$([bool]($v -match '-'))".ToLowerInvariant() >> $env:GITHUB_OUTPUT
           Write-Host "Version $v"
 
-      - name: Test, publish and package
+      - name: Test, publish, smoke test and package
         id: package
         shell: pwsh
-        run: ./build/package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+        run: |
+          $flags = @{}
+          if ('${{ matrix.tests }}' -ne 'true') { $flags.SkipTests = $true } # the tests run once, on Windows
+          if ('${{ matrix.deb }}' -eq 'true') { $flags.TestDebInstall = $true }
+          ./build/package.ps1 -Version "${{ steps.version.outputs.version }}" -Runtime ${{ matrix.runtime }} @flags
 
-      - name: Keep the zip as a workflow artifact
+      - name: Keep the package as a workflow artifact
         uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.package.outputs.name }}
           path: |
             artifacts/release/*.zip
+            artifacts/release/*.tar.gz
+            artifacts/release/*.deb
             artifacts/release/*.sha256
           retention-days: 14
           if-no-files-found: error
 
+  release:
+    name: GitHub Release
+    if: github.ref_type == 'tag'
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release and upload its files
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Collect the packages
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts/release
+          merge-multiple: true
+
       - name: Create GitHub Release
-        if: github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = $env:GITHUB_REF_NAME
+          $v = $tag -replace '^v', ''
+          $dv = $v -replace '-', '~'
+          $docs = "https://github.com/$env:GITHUB_REPOSITORY/blob/$tag/docs"
           $notes = @"
-          ## Windows (x64)
+          ## Downloads
 
-          Download **${{ steps.package.outputs.name }}.zip**, unzip it, edit ``appsettings.json`` (``MeshCore:Connection``) and run ``MeshCore.Host.exe``.
-          No .NET install needed. Then open http://localhost:5080.
+          No .NET install needed. Pick the file for your computer, then follow its install guide:
 
-          - Full guide: ``docs/SETUP.md`` in the zip
-          - Heltec V4 WiFi firmware: ``docs/HELTEC-V4-WIFI.md``
-          - Run as a Windows service: ``service/install-windows-service.ps1`` (as Administrator)
-          - Verify the download: compare with the ``.sha256`` file (``Get-FileHash <zip> -Algorithm SHA256``)
+          | Computer | File | Guide |
+          |---|---|---|
+          | Windows 10/11 (64-bit) | ``MeshCoreComputerClient-$v-win-x64.zip`` | [Windows]($docs/install-windows.md) |
+          | Ubuntu, Debian, Linux Mint (64-bit PC) | ``meshcore-computer-client_${dv}_amd64.deb`` | [Linux]($docs/install-linux.md) |
+          | Raspberry Pi OS (64-bit), Ubuntu or Debian on ARM | ``meshcore-computer-client_${dv}_arm64.deb`` | [Linux]($docs/install-linux.md) |
+          | Other Linux, PC (64-bit) | ``MeshCoreComputerClient-$v-linux-x64.tar.gz`` | [Linux]($docs/install-linux.md#other-linux-targz) |
+          | Other Linux, ARM (64-bit OS) | ``MeshCoreComputerClient-$v-linux-arm64.tar.gz`` | [Linux]($docs/install-linux.md#other-linux-targz) |
+          | Mac with Apple silicon (M1 and newer) | ``MeshCoreComputerClient-$v-osx-arm64.tar.gz`` | [macOS]($docs/install-macos.md) |
+          | Mac with an Intel processor | ``MeshCoreComputerClient-$v-osx-x64.tar.gz`` | [macOS]($docs/install-macos.md) |
+
+          - **Ubuntu, Debian, Raspberry Pi OS:** ``sudo apt install ./meshcore-computer-client_${dv}_<amd64 or arm64>.deb``. It starts as the
+            ``meshcore-computer-client`` service; set your radio in ``/etc/meshcore-computer-client/appsettings.json``. Update by installing the newer .deb.
+          - **macOS:** the app is signed but not notarized by Apple: after a browser download, see the macOS guide (one command).
+          - Settings, HTTPS for phones, battery history, photos: [setup guide]($docs/SETUP.md). Heltec V4 WiFi firmware: [guide]($docs/HELTEC-V4-WIFI.md).
+          - Check a download against its ``.sha256`` file: ``sha256sum -c <file>.sha256`` (Linux), ``shasum -a 256 -c <file>.sha256`` (macOS),
+            ``Get-FileHash <file> -Algorithm SHA256`` (Windows).
           "@
+          $files = Get-ChildItem artifacts/release -File | ForEach-Object FullName
+          if (@($files | Where-Object { $_ -notlike '*.sha256' }).Count -ne 7) { throw "Expected 7 packages, got: $($files -join ', ')" }
           $flags = @('--title', "MeshCore Computer Client $tag", '--notes', $notes, '--generate-notes')
-          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
-          gh release create $tag artifacts/release/*.zip artifacts/release/*.sha256 @flags
+          if ($v -match '-') { $flags += '--prerelease' }
+          gh release create $tag @files @flags

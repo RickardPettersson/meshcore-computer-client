@@ -3,3 +3,4 @@
 *.png binary
 *.ico binary
 *.service text eol=lf
+tools/deb/* text eol=lf

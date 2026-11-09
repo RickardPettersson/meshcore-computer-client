@@ -13,6 +13,11 @@ using Microsoft.EntityFrameworkCore;
 System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = System.Globalization.CultureInfo.InvariantCulture;
 
+if (args.Contains(SelfCheck.Argument))
+{
+    Environment.Exit(SelfCheck.Run()); // used by the release build: do the native libraries load on this platform?
+}
+
 var builder = WebApplication.CreateBuilder(HostingSetup.Options(args));
 
 // ---- Configuration ----------------------------------------------------------

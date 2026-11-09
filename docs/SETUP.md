@@ -1,62 +1,65 @@
 # Setup Guide
 
-How to install MeshCore Computer Client on a computer that's always on, connect it to your radio, and use it
+How to set up MeshCore Computer Client on a computer that's always on, connect it to your radio, and use it
 from phones and desktops on your network.
 
-## 1. What you need
+## Install
+
+First install it on your computer. Every package is self-contained: **no .NET install needed**.
+
+| Computer | Package | Guide |
+|---|---|---|
+| Windows 10/11 (64-bit) | `MeshCoreComputerClient-<version>-win-x64.zip` | [Install on Windows](install-windows.md) |
+| Ubuntu, Debian, Linux Mint, Raspberry Pi OS (64-bit) | `meshcore-computer-client_<version>_amd64.deb` / `_arm64.deb` | [Install on Linux](install-linux.md) |
+| Other Linux (64-bit) | `MeshCoreComputerClient-<version>-linux-x64.tar.gz` / `-linux-arm64.tar.gz` | [Install on Linux](install-linux.md#other-linux-targz) |
+| Mac (Apple silicon or Intel) | `MeshCoreComputerClient-<version>-osx-arm64.tar.gz` / `-osx-x64.tar.gz` | [Install on macOS](install-macos.md) |
+
+Download them from the [Releases page](https://github.com/RickardPettersson/meshcore-computer-client/releases).
+Each guide covers downloading, starting it automatically, updating, where its files are, and problems specific to that system.
+This page covers everything that's the same everywhere.
+
+## What you need
 
 - A **MeshCore companion radio** running the **WiFi** or **USB** companion firmware. The BLE build doesn't work.
   - **WiFi:** note the radio's IP address and port (default 5000), e.g. `192.168.1.212:5000`. Heltec V4: see [HELTEC-V4-WIFI.md](HELTEC-V4-WIFI.md) to build and flash the WiFi firmware.
-  - **USB:** plug it in; the app finds it by itself, or you can name the port (`COM11`, `/dev/ttyACM0`).
-- A computer on the same network: Windows 10/11, Linux, or a Raspberry Pi (64-bit OS).
-- To **build** the app: the .NET 10 SDK. **Running** a published build needs no .NET install.
+  - **USB:** plug it in. The app finds it by itself, or you can name the port (`COM11`, `/dev/ttyACM0`, `/dev/cu.usbmodem1101`).
+- A computer on the same network as your phones, ideally one that's always on.
 
-## 2. Get it
+## Settings
 
-**Windows, easiest:** download the latest `MeshCoreComputerClient-<version>-win-x64.zip` from the
-[Releases page](https://github.com/RickardPettersson/meshcore-computer-client/releases) and unzip it, e.g. to `C:\MeshCore`.
-It's self-contained: **no .NET install needed**. It includes `meshcore-cli.exe`, the service scripts and these docs.
-To check the download, compare `Get-FileHash <zip> -Algorithm SHA256` with the `.sha256` file next to it.
-
-**Or build it yourself** (any platform, needs the .NET 10 SDK):
-
-```bash
-git clone https://github.com/RickardPettersson/meshcore-computer-client.git
-cd meshcore-computer-client
-dotnet publish src/MeshCore.Host -p:PublishProfile=win-x64       # or linux-x64, linux-arm64 (Raspberry Pi)
-```
-
-The result goes in `artifacts/publish/<platform>/`. It's one file (`MeshCore.Host.exe` or `MeshCore.Host`) plus
-`appsettings.json` and the `wwwroot` folder. Copy that folder wherever you want the app to live, e.g. `C:\MeshCore` or `/opt/meshcore`.
-
-## 3. Configure
-
-Edit `appsettings.json` in that folder:
+The settings are in `appsettings.json`. Where it is depends on how you installed: next to the program, or
+`/etc/meshcore-computer-client/appsettings.json` with the Linux `.deb`. Restart the app after changing it.
 
 | Setting | What it is |
 |---|---|
-| `MeshCore:Connection` | `192.168.1.212:5000` (WiFi), `COM11` / `/dev/ttyACM0` (USB), `auto` (find a USB radio) or `simulator` (no radio) |
+| `MeshCore:Connection` | `192.168.1.212:5000` (WiFi), `COM11` / `/dev/ttyACM0` / `/dev/cu.usbmodem1101` (USB on Windows / Linux / macOS), `auto` (find a USB radio) or `simulator` (no radio) |
 | `Kestrel:Endpoints:Web:Url` | Website over HTTP, default `http://0.0.0.0:5080` (whole network) |
 | `Web:Https` | Website over HTTPS: `Enabled` (default on), `Port` (5443), `RedirectHttp`, and optionally your own `CertificatePath` / `CertificatePassword` (.pfx) |
 | `Kestrel:Endpoints:Api:Url` | REST API, default `http://127.0.0.1:5081` (this computer only) |
-| `MeshCore:DataDirectory` | Where the database, users, keys, certificates and logs go (default `data` next to the app) |
+| `MeshCore:DataDirectory` | Where the database, users, keys, certificates and logs go (default `data` next to the app; `/var/lib/meshcore-computer-client` with the `.deb`) |
 | `BatteryLog` | Battery history of "my devices": `Enabled`, `Interval` (`01:00:00`), `Retention` (`90.00:00:00`). See [Battery history](#battery-history). |
 | `Images` | Photo sharing in chats: `Enabled`, `DefaultExpiry` (`1h`, `12h`, `24h`, `72h` or `keep`), `MaxDimension` (1600 px). See [Images](#images). |
 | `Serilog:MinimumLevel` | Log detail (`Information` by default; set `Override:MeshCore` to `Debug` when troubleshooting) |
 
-You can also override any setting on the command line, e.g. `MeshCore.Host.exe --MeshCore:Connection=COM7`.
+You can also override any setting on the command line, e.g. `MeshCore.Host --MeshCore:Connection=COM7`, or with an environment
+variable, e.g. `MeshCore__Connection=COM7` (two underscores).
 
-## 4. First start
+## First steps
 
-Run `MeshCore.Host.exe` (or `./MeshCore.Host` on Linux). The console shows the radio connecting and the addresses it listens on.
-
-1. Open **http://localhost:5080** and create the **Admin** account. That only works while there are no users.
+1. Open **http://localhost:5080** (or **http://&lt;computer's IP&gt;:5080** from another device) and create the **Admin** account.
+   That only works while there are no users.
 2. Under **Settings → Users**, add accounts for others. Each new user picks their own password at first sign-in.
 3. Under **Device → Node settings**, give your node a short name.
 
-Started in a terminal, the app also gives you a console chat (`/help`). Stop it with Ctrl+C.
+Started in a terminal, the app also gives you a console chat (`/help`).
 
-## 5. Phones: HTTPS and "install as app"
+| Port | What | Reachable from |
+|---|---|---|
+| 5080 | Website over HTTP (redirects to HTTPS) | your network |
+| 5443 | Website over HTTPS | your network |
+| 5081 | REST API | this computer only |
+
+## Phones: HTTPS and install as app
 
 Phones need HTTPS for secure cookies, offline support, location and app install. The app makes its own certificate for your network:
 
@@ -70,33 +73,6 @@ For a stable address, give the computer a fixed IP (DHCP reservation) in your ro
 
 Want to skip installing the certificate? Phones can accept the browser warning instead. Want your own certificate
 (e.g. from your router or a domain)? Set `Web:Https:CertificatePath`.
-
-## 6. Start automatically
-
-### Windows service
-
-From an **Administrator** PowerShell:
-
-```powershell
-.\tools\service\install-windows-service.ps1 -AppFolder "C:\MeshCore"
-```
-
-This creates the **MeshCoreComputerClient** service and sets it up as follows:
-- It starts with Windows, runs as the unprivileged `LocalService` account, and restarts if it stops.
-- It opens ports 5080 and 5443 in Windows Firewall, for **private** networks only.
-
-Logs are in `C:\MeshCore\data\logs`. To remove the service, run `.\tools\service\uninstall-windows-service.ps1`; your data is kept.
-
-### Linux (systemd), e.g. a Raspberry Pi
-
-```bash
-sudo useradd --system --home /opt/meshcore meshcore
-sudo cp -r artifacts/publish/linux-arm64 /opt/meshcore && sudo chown -R meshcore /opt/meshcore
-sudo usermod -aG dialout meshcore          # USB radios only
-sudo cp tools/service/meshcore.service /etc/systemd/system/
-sudo systemctl enable --now meshcore
-journalctl -u meshcore -f                  # or /opt/meshcore/data/logs
-```
 
 ## Battery history
 
@@ -130,23 +106,41 @@ photo itself can't travel over the radio; the link does, and the recipient opens
 - **Rules:** the hosts' own rules apply (for example, no commercial use of Catbox). Each user can upload 20 photos per 10 minutes.
 - **Turn it off:** set `Images:Enabled` to `false`.
 
-## 7. Back up, move, update
+## Back up and move
 
-- **Back up** the `data` folder. It holds everything: messages (`meshcore.db`), users (`appsettings.auth.json`),
-  encryption keys (`keys/`) and certificates (`https/`). Stop the app first so the database is consistent.
+- **Back up** the data folder (`data` next to the app, or `/var/lib/meshcore-computer-client` with the `.deb`). It holds everything:
+  messages (`meshcore.db`), users (`appsettings.auth.json`), encryption keys (`keys/`) and certificates (`https/`).
+  Stop the app first so the database is consistent. Back up `appsettings.json` too if you changed it.
 - The **`keys/` folder belongs to `appsettings.auth.json`** and the certificates. On Windows they're protected with DPAPI for the account
-  that runs the app. If you restore to another computer or account, users have to sign in again and a new certificate
-  is made: phones then need the new certificate.
-- **Update:** stop the app or service, replace the exe and `wwwroot` (keep `appsettings.json` and `data`), and start it again.
-  Database changes are applied automatically on start.
+  that runs the app. On Linux and macOS they're plain files: keep the data folder readable only by the account that runs the app.
+- If you restore to another computer or account, users may have to sign in again and a new certificate may be made: phones then
+  need the new certificate.
+- **Updating** is covered in each install guide. Database changes are applied automatically on start.
 
-## 8. Troubleshooting
+## Build it yourself
+
+Needs the .NET 10 SDK, on any of the systems above:
+
+```bash
+git clone https://github.com/RickardPettersson/meshcore-computer-client.git
+cd meshcore-computer-client
+dotnet publish src/MeshCore.Host -p:PublishProfile=win-x64       # or linux-x64, linux-arm64, osx-arm64, osx-x64
+```
+
+The result goes in `artifacts/publish/<platform>/`: one program file (`MeshCore.Host.exe` or `MeshCore.Host`) plus
+`appsettings.json` and the `wwwroot` folder. `./build/package.ps1 -Version 1.0.0 -Runtime <platform>` makes the same package as a
+release. It needs PowerShell, and the `.deb` is only made on a Debian or Ubuntu machine. Build macOS packages on a Mac so they get signed.
+
+## Troubleshooting
 
 | Symptom | Check |
 |---|---|
 | Status pill says **"In use elsewhere"** | The WiFi radio serves one client at a time. Close the phone app or `meshcore-cli`. The app retries after 2 minutes. |
 | **"Offline"**, can't reach the WiFi radio | Is it on the same network, and does `ping <ip>` work? If ping works but the port doesn't, power-cycle the radio. |
 | USB radio not found | Companion **USB** firmware? Try `meshcore-cli ports`, then set `MeshCore:Connection` to the port. |
-| Phone can't open the site | Same WiFi network? Firewall allows 5080/5443 on a *private* network? Use the computer's IP, not its name. |
-| Browser warns about the certificate | Install the certificate (section 5), or check the address is one the certificate covers (listed in the log at start). |
-| Something else | Look in `data/logs/meshcore-<date>.log`. Set `Serilog:MinimumLevel:Override:MeshCore` to `Debug` for more detail. |
+| Phone can't open the site | Same WiFi network? Firewall allows 5080/5443? Use the computer's IP, not its name. |
+| Browser warns about the certificate | Install the certificate ([phones](#phones-https-and-install-as-app)), or check the address is one the certificate covers (listed in the log at start). |
+| Something else | Look in the log files (`logs` in the data folder). Set `Serilog:MinimumLevel:Override:MeshCore` to `Debug` for more detail. |
+
+Problems specific to one system: [Windows](install-windows.md#windows-problems), [Linux](install-linux.md#linux-problems),
+[macOS](install-macos.md#macos-problems).
