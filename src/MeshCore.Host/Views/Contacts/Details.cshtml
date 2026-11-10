@@ -56,6 +56,14 @@
             {
                 <form asp-action="Favourite" method="post"><input type="hidden" name="key" value="@c.PublicKey"><input type="hidden" name="favourite" value="@((!c.Favourite).ToString().ToLowerInvariant())">
                     <button class="btn btn-outline-warning" type="submit"><i class="bi @(c.Favourite ? "bi-star-fill" : "bi-star")" aria-hidden="true"></i> @(c.Favourite ? "Unfavourite" : "Favourite")</button></form>
+                @if (c.Hops is { } routeHops)
+                {
+                    <form asp-action="ResetPath" method="post"
+                          data-confirm="Forget the @routeHops-hop route to @c.Name? The next message, login or request will flood to find a new route." data-confirm-button="Reset route">
+                        <input type="hidden" name="key" value="@c.PublicKey">
+                        <button class="btn btn-outline-secondary" type="submit" title="Forget the learned route; the next message floods to find a new one">
+                            <i class="bi bi-signpost-2" aria-hidden="true"></i> Reset route</button></form>
+                }
                 <form asp-action="Mine" method="post"><input type="hidden" name="key" value="@c.PublicKey"><input type="hidden" name="mine" value="@((!c.IsMine).ToString().ToLowerInvariant())">
                     <button class="btn @(c.IsMine ? "btn-success" : "btn-outline-success")" type="submit"
                             title="Your own device: its battery is checked once an hour, with a small telemetry request.">

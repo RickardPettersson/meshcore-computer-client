@@ -60,6 +60,7 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
     private byte _manualAdd, _telemetryModes, _locPolicy, _multiAcks;
     private uint _rxDelay, _airtime = 1000;
     private readonly HashSet<byte> _adminLogins = [];
+    private readonly HashSet<byte> _routeReset = []; // routes forgotten with Reset path; learned again when the node answers
 
     public string Description => SimulatorEndpoint.Name;
 
@@ -211,6 +212,10 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
             case CommandCode.GetDeviceTime:
                 Reply(Concat([9], U32(Now)));
                 break;
+            case CommandCode.ResetPath when NodeByKey(cmd.Slice(1, 32)) is { } resetNode:
+                _routeReset.Add(resetNode.Seed);
+                Reply([0]);
+                break;
             case CommandCode.SendChannelTextMessage or CommandCode.SetDeviceTime or CommandCode.SendSelfAdvert
                 or CommandCode.RemoveContact or CommandCode.ResetPath:
                 Reply([0]);
@@ -257,6 +262,11 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
                 if (password.Length > 0 && password != "wrong")
                 {
                     _adminLogins.Add(node.Seed);
+                }
+                if (password != "wrong" && _routeReset.Remove(node.Seed))
+                {
+                    // The login flooded and the answer brought a route back: the radio says so with PATH_UPDATED.
+                    _ = PushLaterAsync(Concat([0x81], Key(node.Seed)));
                 }
                 _ = PushLaterAsync(login);
                 break;
@@ -317,7 +327,7 @@ public sealed class SimulatedRadio(TimeSpan messageInterval, TimeProvider time) 
     {
         var (name, flags) = _contactEdits.TryGetValue(n.Seed, out var e) ? e : (n.Name, (byte)0);
         // The repeater is a direct neighbour (0 hops), so it can be traced; the others flood.
-        var pathLen = n.Type == AdvertType.Repeater ? (byte)0 : (byte)0xFF;
+        var pathLen = n.Type == AdvertType.Repeater && !_routeReset.Contains(n.Seed) ? (byte)0 : (byte)0xFF;
         return Concat([code], Key(n.Seed), [(byte)n.Type, flags, pathLen], new byte[64],
             Fixed(name, 32), U32(Now), I32(59_330_000 + n.Seed * 100), I32(18_070_000), U32(Now));
     }

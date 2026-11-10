@@ -183,4 +183,35 @@ public class RadioFeatureTests
         Assert.Contains("Noise floor", await status.Content.ReadAsStringAsync(), StringComparison.Ordinal);
         Assert.Contains("Radio (LoRa) settings", settings, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Reset_route_on_the_contact_page_makes_it_flood_until_a_route_is_learned_again()
+    {
+        using var app = new ApiFactory { UseSimulator = true };
+        var browser = new Browser(app);
+        await browser.SetupAsync();
+        await app.WaitForRadioAsync();
+        var key = "50515253545556575859" + "5a5b5c5d5e5f606162636465666768696a6b6c6d6e6f";
+        var details = $"/Contacts/Details/{key}";
+
+        var before = await browser.PageAsync(details);
+        var reset = await browser.SubmitWithHeaderAsync(details, "/Contacts/ResetPath", ("Referer", $"http://localhost{details}"), ("key", key));
+        var after = await browser.PageAsync(details);
+        await browser.SubmitAsync(details, "/Contacts/Login", ("key", key), ("password", "")); // its answer brings a route back
+        var relearned = "";
+        for (var i = 0; i < 50 && !relearned.Contains("0 hop(s)", StringComparison.Ordinal); i++) // the radio reports it a moment later
+        {
+            await Task.Delay(100);
+            relearned = await browser.PageAsync(details);
+        }
+
+        Assert.Contains("0 hop(s)", before, StringComparison.Ordinal);
+        Assert.Contains("Reset route", before, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Redirect, reset.StatusCode);
+        Assert.Equal(details, reset.Headers.Location?.OriginalString);                        // back to the contact page
+        Assert.Contains("route unknown (floods)", after, StringComparison.Ordinal);
+        Assert.DoesNotContain("> Reset route</button>", after, StringComparison.Ordinal);    // nothing to reset now
+        Assert.Contains("Route forgotten", after, StringComparison.Ordinal);
+        Assert.Contains("0 hop(s)", relearned, StringComparison.Ordinal);
+    }
 }

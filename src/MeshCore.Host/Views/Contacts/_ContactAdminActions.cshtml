@@ -1,8 +1,8 @@
 @model ContactResponse
 <form asp-controller="Contacts" asp-action="ResetPath" method="post"
-      data-confirm="Forget the route to @Model.Name? The next message will flood to find a new path." data-confirm-button="Reset path">
+      data-confirm="Forget the route to @Model.Name? The next message will flood to find a new route." data-confirm-button="Reset route">
     <input type="hidden" name="key" value="@Model.PublicKey">
-    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Reset path" aria-label="Reset path to @Model.Name"><i class="bi bi-signpost-2" aria-hidden="true"></i></button>
+    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Reset route" aria-label="Reset route to @Model.Name"><i class="bi bi-signpost-2" aria-hidden="true"></i></button>
 </form>
 <form asp-controller="Contacts" asp-action="Remove" method="post"
       data-confirm="Remove @Model.Name from the radio? Message history stays here." data-confirm-button="Remove">

@@ -97,8 +97,8 @@ public sealed partial class ContactsController(MeshApiClient api) : WebControlle
     public async Task<IActionResult> ResetPath(string key, CancellationToken ct)
     {
         await api.ResetPathAsync(key, ct);
-        Flash("Route forgotten. The next message to this contact will flood to find a new one.");
-        return RedirectToAction(nameof(Index));
+        Flash("Route forgotten. The next message, login or request to this contact will flood to find a new one.");
+        return RedirectBack(Url.Action(nameof(Index))!); // back to the list or the contact page, wherever it was pressed
     }
 
     [HttpPost, Authorize(AuthPolicies.Admin)]
