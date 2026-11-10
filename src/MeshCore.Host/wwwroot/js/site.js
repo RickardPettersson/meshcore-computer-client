@@ -106,4 +106,45 @@
             }, function (err) { alert('Could not get the location: ' + err.message); }, { enableHighAccuracy: true, timeout: 10000 });
         });
     });
+
+    // ---- "Loading…" screen while the next page is on its way -------------------------
+    // Radio actions (login, status, telemetry, saving settings) can take many seconds. The screen appears when a
+    // form is sent or a link is followed and the answer takes more than a moment; quick pages never show it.
+    // Opt out with data-no-loading (downloads, which don't leave the page).
+    var loading = document.getElementById('app-loading');
+    if (loading) {
+        var showTimer = null, giveUpTimer = null;
+        var hideLoading = function () {
+            clearTimeout(showTimer);
+            clearTimeout(giveUpTimer);
+            loading.hidden = true;
+        };
+        var showLoadingSoon = function () {
+            hideLoading();
+            showTimer = setTimeout(function () { loading.hidden = false; }, 300);
+            giveUpTimer = setTimeout(hideLoading, 120000); // never trap the user if the page didn't change after all
+        };
+        // Registered after the confirm dialog and the page's own handlers, so anything they cancelled is skipped.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (e.defaultPrevented || !(form instanceof HTMLFormElement) || form.target === '_blank'
+                || form.hasAttribute('data-no-loading') || (e.submitter && e.submitter.hasAttribute('data-no-loading'))) {
+                return;
+            }
+            showLoadingSoon();
+        });
+        document.addEventListener('click', function (e) {
+            var link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+            if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+                || link.target === '_blank' || link.hasAttribute('download') || link.hasAttribute('data-no-loading')
+                || link.hasAttribute('data-bs-toggle') || link.origin !== location.origin
+                || (link.pathname === location.pathname && link.search === location.search && link.hash)) {
+                return;
+            }
+            showLoadingSoon();
+        });
+        // Coming back with the browser's Back button restores the old page as it was: make sure it isn't covered.
+        window.addEventListener('pageshow', hideLoading);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { hideLoading(); } });
+    }
 })();

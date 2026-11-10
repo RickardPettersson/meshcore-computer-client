@@ -24,7 +24,7 @@
         <p>This app made its own certificate for your home network. Install it once on each phone or computer and the
             browser will trust <strong>@httpsUrl</strong> with no warnings. This also unlocks offline support and "install as app".</p>
 
-        <a class="btn btn-primary w-100 py-2 mb-2" asp-action="CertificateFile"><i class="bi bi-download" aria-hidden="true"></i> Download certificate</a>
+        <a class="btn btn-primary w-100 py-2 mb-2" asp-action="CertificateFile" data-no-loading><i class="bi bi-download" aria-hidden="true"></i> Download certificate</a>
         <p class="small text-body-secondary text-center">
             @ca.Subject.Split(',')[0].Replace("CN=", "")<br>
             Fingerprint (SHA-256): <span class="app-mono">@Convert.ToHexString(ca.GetCertHash(System.Security.Cryptography.HashAlgorithmName.SHA256))[..23]…</span>

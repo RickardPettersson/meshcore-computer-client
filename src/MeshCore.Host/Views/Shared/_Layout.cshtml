@@ -106,6 +106,15 @@
         </div>
     </div>
 
+    @* Shown by site.js while a slow action (a radio request, a save) is on its way *@
+    <div class="app-loading" id="app-loading" role="status" aria-live="polite" hidden>
+        <div class="app-loading-box shadow">
+            <div class="spinner-border text-primary" aria-hidden="true"></div>
+            <div class="fw-semibold">Loading…</div>
+            <div class="small text-body-secondary">Waiting for an answer. Radio requests can take a while.</div>
+        </div>
+    </div>
+
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @if (signedIn)

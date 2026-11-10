@@ -31,5 +31,7 @@ public class BatteryPageTests
 
         Assert.DoesNotContain("+", Hosting.AppVersion.Current, StringComparison.Ordinal);
         Assert.Contains($">v{Hosting.AppVersion.Current}</div>", page, StringComparison.Ordinal);
+        // The "Loading…" screen is in every page, hidden until site.js shows it.
+        Assert.Matches("<div class=\"app-loading\" id=\"app-loading\"[^>]* hidden>", page);
     }
 }
