@@ -64,7 +64,7 @@ public sealed record DeviceResponse(
         s.Device is { } d ? new HardwareResponse(d.Model, d.FirmwareVersion, d.FirmwareBuildDate, d.FirmwareVersionCode, d.MaxContacts, d.MaxChannels) : null);
 }
 
-/// <param name="Percent">Estimated charge from the voltage (single-cell Li-ion curve), 0–100; null without a reading.</param>
+/// <param name="Percent">Estimated charge from the voltage (3.0 V = 0%, 4.2 V = 100%, as in the MeshCore apps), 0–100; null without a reading.</param>
 public sealed record BatteryResponse(int Millivolts, double Volts, uint? StorageUsedKb, uint? StorageTotalKb, int? Percent = null);
 
 public sealed record DeviceTimeResponse(DateTimeOffset DeviceTime, DateTimeOffset ServerTime, double DriftSeconds);

@@ -21,8 +21,8 @@ public static class BatteryChart
         ArgumentNullException.ThrowIfNull(readings);
         var answered = readings.Where(r => r.Millivolts is not null).ToList();
         var (minMv, maxMv) = answered.Count == 0
-            ? (3300, 4300)
-            : (Math.Min(3300, answered.Min(r => r.Millivolts!.Value) - 50), Math.Max(4300, answered.Max(r => r.Millivolts!.Value) + 50));
+            ? (BatteryLevel.EmptyMillivolts, 4300)
+            : (Math.Min(BatteryLevel.EmptyMillivolts, answered.Min(r => r.Millivolts!.Value) - 50), Math.Max(4300, answered.Max(r => r.Millivolts!.Value) + 50));
         minMv = minMv / 100 * 100;
         maxMv = (maxMv + 99) / 100 * 100;
         var span = Math.Max(1, (now - since).TotalSeconds);

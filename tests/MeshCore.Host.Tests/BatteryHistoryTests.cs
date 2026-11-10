@@ -95,7 +95,7 @@ public class BatteryLogTests
         Assert.Equal(4012, devices[0].GetProperty("latest").GetProperty("millivolts").GetInt32());
         Assert.Equal("radio", devices[0].GetProperty("latest").GetProperty("note").GetString());
         Assert.Equal(4150, devices[1].GetProperty("latest").GetProperty("millivolts").GetInt32());
-        Assert.Equal(95, devices[1].GetProperty("latest").GetProperty("percent").GetInt32()); // 4.15 V
+        Assert.Equal(96, devices[1].GetProperty("latest").GetProperty("percent").GetInt32()); // 4.15 V
         var reading = Assert.Single(history.GetProperty("readings").EnumerateArray());
         Assert.Equal("telemetry", reading.GetProperty("note").GetString());
         Assert.Equal(21.5, reading.GetProperty("temperatureC").GetDouble());                  // from the same telemetry answer
@@ -241,7 +241,7 @@ public class BatteryWebTests
 
         Assert.Contains("href=\"/Battery/History?node=self\"", device, StringComparison.Ordinal);
         Assert.Contains("No checks in this period yet", empty, StringComparison.Ordinal);
-        Assert.Contains("79%", one, StringComparison.Ordinal);
+        Assert.Contains("84%", one, StringComparison.Ordinal);
         Assert.Matches("<a class=\"btn btn-primary\"[^>]*aria-current=\"page\"[^>]*>30 days</a>", one);
     }
 }
@@ -262,6 +262,6 @@ public class BatteryChartTests
         Assert.Equal(3, System.Text.RegularExpressions.Regex.Count(svg, "<polyline")); // 0–1, 3–4, 10–11
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(svg, "<rect class=\"miss\""));
         Assert.Contains("4.0 V", svg, StringComparison.Ordinal);
-        Assert.Contains(">40%<", svg, StringComparison.Ordinal);    // right axis: 3.8 V ≈ 40%
+        Assert.Contains(">67%<", svg, StringComparison.Ordinal);    // right axis: 3.8 V ≈ 67%
     }
 }

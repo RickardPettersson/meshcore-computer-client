@@ -90,7 +90,8 @@ contact (or the Device page for this radio), or its battery for graphs over 24 h
   into "no answer" points to something else: power, a reboot, range or the route.
 - **Temperature** is recorded when the device sends one in its telemetry (most boards measure their own temperature, so it reads
   a little above the air around it). This radio's own temperature isn't available.
-- **Percent** is estimated from the voltage with a single-cell Li-ion curve. It reads high while charging and dips while transmitting.
+- **Percent** is estimated from the voltage the same way as the MeshCore app: 3.0 V is 0%, 4.2 V is 100%, in a straight line
+  (single-cell Li-ion/LiPo). It reads high while charging and dips while transmitting.
 - **Storage:** readings older than 90 days are deleted (`BatteryLog:Retention`). Unmarking a device keeps its history.
 
 ## Images

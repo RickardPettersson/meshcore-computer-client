@@ -5,12 +5,13 @@ public class BatteryLevelTests
     [Theory]
     [InlineData(4250, 100)] // charging / above full
     [InlineData(4200, 100)]
-    [InlineData(4050, 83)]  // between 4.02 V (80%) and 4.08 V (85%); halves round up
-    [InlineData(4012, 79)]
-    [InlineData(3840, 50)]
-    [InlineData(3700, 13)]
-    [InlineData(3270, 0)]
-    [InlineData(3000, 0)]   // below empty
+    [InlineData(4050, 88)]  // 87.5: halves round up, as in the MeshCore app
+    [InlineData(4012, 84)]
+    [InlineData(3600, 50)]
+    [InlineData(3520, 43)]  // what the MeshCore Android app shows for 3.52 V
+    [InlineData(3006, 1)]   // 0.5 rounds up
+    [InlineData(3000, 0)]
+    [InlineData(2800, 0)]   // below empty
     public void Voltage_maps_to_an_estimated_percentage(int millivolts, int percent) =>
         Assert.Equal(percent, BatteryLevel.Percent(millivolts));
 

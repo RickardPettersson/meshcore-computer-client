@@ -13,10 +13,10 @@ public class BatteryPageTests
         var device = await browser.PageAsync("/Device");
         var dashboard = await browser.PageAsync("/");
 
-        Assert.Matches("<a class=\"fw-semibold\"[^>]*>79%</a>", device);
+        Assert.Matches("<a class=\"fw-semibold\"[^>]*>84%</a>", device);
         Assert.Contains("(4.012 V)", device, StringComparison.Ordinal);
-        Assert.Contains("value=\"79\"", device, StringComparison.Ordinal);            // the level bar
-        Assert.Contains("<div class=\"display-6\">79%</div>", dashboard, StringComparison.Ordinal);
+        Assert.Contains("value=\"84\"", device, StringComparison.Ordinal);            // the level bar
+        Assert.Contains("<div class=\"display-6\">84%</div>", dashboard, StringComparison.Ordinal);
         Assert.Contains("4.01 V", dashboard, StringComparison.Ordinal);
     }
 }
