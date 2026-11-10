@@ -69,6 +69,7 @@ public class RemoteRequestTests
         var ex = await Assert.ThrowsAsync<MeshCoreTimeoutException>(() => client.RequestTelemetryAsync(Repeater));
 
         Assert.Contains("No answer from the remote node", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("log in to it first", ex.Message, StringComparison.Ordinal); // the usual reason for a repeater
     }
 
     [Fact]

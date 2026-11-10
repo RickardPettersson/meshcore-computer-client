@@ -73,10 +73,10 @@ public sealed partial class MeshCoreClient
         ExecuteAsync<OkResponse>(Commands.Logout(key), cancellationToken);
 
     public Task<StatusResponsePush> RequestStatusAsync(PublicKey key, CancellationToken cancellationToken = default) =>
-        RemoteRequestAsync<StatusResponsePush>(Commands.SendStatusRequest(key), p => key.Matches(p.Sender), cancellationToken);
+        RemoteRequestAsync<StatusResponsePush>(Commands.SendStatusRequest(key), p => key.Matches(p.Sender), cancellationToken, NotLoggedInHint);
 
     public Task<TelemetryResponsePush> RequestTelemetryAsync(PublicKey key, CancellationToken cancellationToken = default) =>
-        RemoteRequestAsync<TelemetryResponsePush>(Commands.SendTelemetryRequest(key), p => key.Matches(p.Sender), cancellationToken);
+        RemoteRequestAsync<TelemetryResponsePush>(Commands.SendTelemetryRequest(key), p => key.Matches(p.Sender), cancellationToken, NotLoggedInHint);
 
     /// <summary>Sends a trace along <paramref name="path"/> and waits for it to come back with per-hop SNRs.</summary>
     public Task<TraceDataPush> TraceAsync(ReadOnlyMemory<byte> path, int hashSize, CancellationToken cancellationToken = default)
@@ -112,7 +112,11 @@ public sealed partial class MeshCoreClient
     /// Sends a request to a remote node: the radio answers <c>SENT</c> straight away, and the remote node's answer
     /// arrives later as a push. The waiter is registered before sending, so a quick answer isn't missed.
     /// </summary>
-    private async Task<T> RemoteRequestAsync<T>(byte[] command, Func<T, bool> match, CancellationToken cancellationToken) where T : MeshFrame
+    /// <summary>Added to the "no answer" error of requests that a repeater, room server or sensor silently ignores from a radio it doesn't know.</summary>
+    private const string NotLoggedInHint =
+        " A repeater, room server or sensor only answers a radio that has logged in to it: if this radio hasn't yet, log in to it first.";
+
+    private async Task<T> RemoteRequestAsync<T>(byte[] command, Func<T, bool> match, CancellationToken cancellationToken, string hint = "") where T : MeshFrame
     {
         var completion = new TaskCompletionSource<MeshFrame>(TaskCreationOptions.RunContinuationsAsynchronously);
         var waiter = ((Func<MeshFrame, bool>)(f => f is T t && match(t)), completion);
@@ -134,7 +138,7 @@ public sealed partial class MeshCoreClient
             catch (TimeoutException)
             {
                 throw new MeshCoreTimeoutException(
-                    $"No answer from the remote node within {wait.TotalSeconds:0} s. It may be out of range, or the route may have changed.");
+                    $"No answer from the remote node within {wait.TotalSeconds:0} s. It may be out of range, or the route may have changed.{hint}");
             }
         }
         finally
