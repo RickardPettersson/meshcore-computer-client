@@ -16,8 +16,8 @@ internal static class SelfCheck
 
     public static int Run()
     {
-        var version = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        Console.WriteLine($"MeshCore.Host {version.Split('+')[0]} on {RuntimeInformation.RuntimeIdentifier} ({RuntimeInformation.OSDescription})");
+        var version = AppVersion.Current;
+        Console.WriteLine($"MeshCore.Host {version} on {RuntimeInformation.RuntimeIdentifier} ({RuntimeInformation.OSDescription})");
         var ok = Check("SQLite", () =>
         {
             using var db = new SqliteConnection("Data Source=:memory:");

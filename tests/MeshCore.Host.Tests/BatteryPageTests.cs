@@ -19,4 +19,17 @@ public class BatteryPageTests
         Assert.Contains("<div class=\"display-6\">84%</div>", dashboard, StringComparison.Ordinal);
         Assert.Contains("4.01 V", dashboard, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Sidebar_shows_the_app_version()
+    {
+        using var app = new ApiFactory();
+        var browser = new Browser(app);
+        await browser.SetupAsync();
+
+        var page = await browser.PageAsync("/");
+
+        Assert.DoesNotContain("+", Hosting.AppVersion.Current, StringComparison.Ordinal);
+        Assert.Contains($">v{Hosting.AppVersion.Current}</div>", page, StringComparison.Ordinal);
+    }
 }
